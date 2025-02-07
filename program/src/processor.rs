@@ -848,10 +848,6 @@ impl Processor {
                 return Err(StakePoolError::WrongMintingAuthority.into());
             }
 
-            if pool_mint.base.freeze_authority.is_some() {
-                return Err(StakePoolError::InvalidMintFreezeAuthority.into());
-            }
-
             let extensions = pool_mint.get_extension_types()?;
             if extensions
                 .iter()
@@ -3128,6 +3124,7 @@ impl Processor {
         let clock = &Clock::from_account_info(clock_info)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let stake_program_info = next_account_info(account_info_iter)?;
+        let sol_withdraw_authority_info = next_account_info(account_info_iter);
 
         check_stake_program(stake_program_info.key)?;
         check_account_owner(stake_pool_info, program_id)?;
@@ -3144,6 +3141,7 @@ impl Processor {
             stake_pool_info.key,
         )?;
 
+        stake_pool.check_sol_withdraw_authority(sol_withdraw_authority_info)?;
         if stake_pool.manager_fee_account != *manager_fee_info.key {
             return Err(StakePoolError::InvalidFeeAccount.into());
         }
