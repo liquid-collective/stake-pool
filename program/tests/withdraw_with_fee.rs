@@ -21,6 +21,7 @@ async fn success_withdraw_all_fee_tokens() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         tokens_to_withdraw,
     ) = setup_for_withdraw(spl_token::id(), 0).await;
 
@@ -70,6 +71,7 @@ async fn success_withdraw_all_fee_tokens() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &stake_pool_accounts.pool_fee_account.pubkey(),
@@ -98,6 +100,7 @@ async fn success_empty_out_stake_with_fee() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         tokens_to_withdraw,
     ) = setup_for_withdraw(spl_token::id(), 0).await;
 
@@ -209,6 +212,7 @@ async fn success_empty_out_stake_with_fee() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &other_deposit_info.pool_account.pubkey(),
