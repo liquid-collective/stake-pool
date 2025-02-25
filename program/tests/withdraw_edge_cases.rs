@@ -25,6 +25,7 @@ async fn fail_remove_validator() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         _,
     ) = setup_for_withdraw(spl_token::id(), STAKE_ACCOUNT_RENT_EXEMPTION).await;
 
@@ -69,6 +70,7 @@ async fn fail_remove_validator() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -101,6 +103,7 @@ async fn success_remove_validator(multiple: u64) {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         _,
     ) = setup_for_withdraw(spl_token::id(), STAKE_ACCOUNT_RENT_EXEMPTION).await;
 
@@ -188,6 +191,7 @@ async fn success_remove_validator(multiple: u64) {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -243,6 +247,7 @@ async fn fail_with_reserve() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         tokens_to_burn,
     ) = setup_for_withdraw(spl_token::id(), STAKE_ACCOUNT_RENT_EXEMPTION).await;
 
@@ -283,6 +288,7 @@ async fn fail_with_reserve() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -311,6 +317,7 @@ async fn success_with_reserve() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         _,
     ) = setup_for_withdraw(spl_token::id(), STAKE_ACCOUNT_RENT_EXEMPTION).await;
 
@@ -354,6 +361,7 @@ async fn success_with_reserve() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -429,6 +437,7 @@ async fn success_with_empty_preferred_withdraw() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         tokens_to_burn,
     ) = setup_for_withdraw(spl_token::id(), 0).await;
 
@@ -458,6 +467,7 @@ async fn success_with_empty_preferred_withdraw() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -478,6 +488,7 @@ async fn success_and_fail_with_preferred_withdraw() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         tokens_to_burn,
     ) = setup_for_withdraw(spl_token::id(), 0).await;
 
@@ -523,6 +534,7 @@ async fn success_and_fail_with_preferred_withdraw() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -554,6 +566,7 @@ async fn success_and_fail_with_preferred_withdraw() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -574,6 +587,7 @@ async fn fail_withdraw_from_transient() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         tokens_to_withdraw,
     ) = setup_for_withdraw(spl_token::id(), STAKE_ACCOUNT_RENT_EXEMPTION).await;
 
@@ -635,6 +649,7 @@ async fn fail_withdraw_from_transient() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -663,6 +678,7 @@ async fn success_withdraw_from_transient() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         tokens_to_withdraw,
     ) = setup_for_withdraw(spl_token::id(), STAKE_ACCOUNT_RENT_EXEMPTION).await;
 
@@ -724,6 +740,7 @@ async fn success_withdraw_from_transient() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -744,6 +761,7 @@ async fn success_with_small_preferred_withdraw() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         tokens_to_burn,
     ) = setup_for_withdraw(spl_token::id(), 0).await;
 
@@ -858,6 +876,7 @@ async fn success_with_small_preferred_withdraw() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -875,6 +894,7 @@ async fn success_with_small_preferred_withdraw() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
