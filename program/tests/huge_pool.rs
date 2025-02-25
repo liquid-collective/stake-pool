@@ -1,5 +1,7 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![cfg(feature = "test-sbf")]
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 
 mod helpers;
 
@@ -15,7 +17,7 @@ use {
     solana_stake_interface as stake,
     spl_stake_pool::{
         find_stake_program_address, find_transient_stake_program_address, id,
-        instruction::{self, PreferredValidatorType},
+        instruction::{self, PreferredValidatorType, FundingType},
         state::{StakePool, StakeStatus, ValidatorList},
         MAX_VALIDATORS_TO_UPDATE,
     },
@@ -607,6 +609,24 @@ async fn withdraw(max_validators: u32) {
     let (mut context, stake_pool_accounts, _, vote_pubkey, user, stake_pubkey, pool_account_pubkey) =
         setup(max_validators, max_validators, STAKE_AMOUNT).await;
 
+    let sol_withdraw_authority = Keypair::new();
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction::set_funding_authority(
+            &id(),
+            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.manager.pubkey(),
+            Some(&sol_withdraw_authority.pubkey()),
+            FundingType::SolWithdraw,
+        )],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_pool_accounts.manager],
+        context.last_blockhash,
+    );
+    context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
     let (stake_address, _) = find_stake_program_address(
         &id(),
         &vote_pubkey,
@@ -642,6 +662,7 @@ async fn withdraw(max_validators: u32) {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user,
             &pool_account_pubkey,

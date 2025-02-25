@@ -1,6 +1,8 @@
 #![deny(missing_docs)]
 
 //! A program for creating and managing pools of stake
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 
 pub mod big_vec;
 pub mod error;
@@ -161,10 +163,10 @@ pub fn find_ephemeral_stake_program_address(
     )
 }
 
-solana_program::declare_id!("SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy");
+solana_program::declare_id!("LssoLRJHLA3T8Szwd84X3VT2pZYtGuiTEsvvwAKc6Ho");
 /// Program id for devnet
 pub mod devnet {
-    solana_program::declare_id!("DPoo15wWDqpPJJtS2MUZ49aRxqz5ZaaJCJP4z8bLuib");
+    solana_program::declare_id!("AHoLv7BSYnA3pZg4EBFR33gNhHC5cDtA18qdC3exAPtw");
 }
 
 #[cfg(test)]
