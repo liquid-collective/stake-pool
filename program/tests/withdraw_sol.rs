@@ -89,7 +89,7 @@ async fn success(token_program_id: Pubkey) {
     // Save stake pool state before withdrawing
     let pre_stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let pre_stake_pool =
@@ -119,7 +119,7 @@ async fn success(token_program_id: Pubkey) {
     // Stake pool should add its balance to the pool balance
     let post_stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let post_stake_pool =
@@ -247,7 +247,7 @@ async fn success_with_sol_withdraw_authority() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::set_funding_authority(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             Some(&sol_withdraw_authority.pubkey()),
             FundingType::SolWithdraw,
@@ -285,7 +285,7 @@ async fn fail_without_sol_withdraw_authority_signature() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::set_funding_authority(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             Some(&sol_withdraw_authority.pubkey()),
             FundingType::SolWithdraw,

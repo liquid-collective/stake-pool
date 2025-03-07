@@ -55,7 +55,7 @@ async fn _success(token_program_id: Pubkey, test_type: SuccessTestType) {
     // Save stake pool state before withdrawal
     let stake_pool_before = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool_before =
@@ -174,7 +174,7 @@ async fn _success(token_program_id: Pubkey, test_type: SuccessTestType) {
     // Check pool stats
     let stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool =
@@ -277,7 +277,7 @@ async fn fail_with_wrong_stake_program() {
     let wrong_stake_program = Pubkey::new_unique();
 
     let accounts = vec![
-        AccountMeta::new(stake_pool_accounts.stake_pool.pubkey(), false),
+        AccountMeta::new(stake_pool_accounts.stake_pool, false),
         AccountMeta::new(stake_pool_accounts.validator_list.pubkey(), false),
         AccountMeta::new_readonly(stake_pool_accounts.withdraw_authority, false),
         AccountMeta::new(validator_stake_account.stake_account, false),
@@ -384,7 +384,7 @@ async fn fail_with_wrong_token_program_id() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::withdraw_stake(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &sol_withdraw_authority.pubkey(),
             &stake_pool_accounts.validator_list.pubkey(),
             &stake_pool_accounts.withdraw_authority,
@@ -481,7 +481,7 @@ async fn fail_with_unknown_validator() {
         &mut context.banks_client,
         &context.payer,
         &context.last_blockhash,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         0,
     )
     .await;

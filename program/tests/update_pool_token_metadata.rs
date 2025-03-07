@@ -37,7 +37,7 @@ async fn setup() -> (ProgramTestContext, StakePoolAccounts) {
 
     let ix = instruction::create_token_metadata(
         &spl_stake_pool::id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         &stake_pool_accounts.manager.pubkey(),
         &stake_pool_accounts.pool_mint.pubkey(),
         &context.payer.pubkey(),
@@ -72,7 +72,7 @@ async fn success_update_pool_token_metadata() {
 
     let ix = instruction::update_token_metadata(
         &spl_stake_pool::id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         &stake_pool_accounts.manager.pubkey(),
         &stake_pool_accounts.pool_mint.pubkey(),
         updated_name.to_string(),
@@ -114,7 +114,7 @@ async fn fail_manager_did_not_sign() {
 
     let mut ix = instruction::update_token_metadata(
         &spl_stake_pool::id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         &stake_pool_accounts.manager.pubkey(),
         &stake_pool_accounts.pool_mint.pubkey(),
         updated_name.to_string(),
@@ -158,7 +158,7 @@ async fn fail_wrong_manager_signed() {
     let random_keypair = Keypair::new();
     let ix = instruction::update_token_metadata(
         &spl_stake_pool::id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         &random_keypair.pubkey(),
         &stake_pool_accounts.pool_mint.pubkey(),
         updated_name.to_string(),

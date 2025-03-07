@@ -164,6 +164,9 @@ pub enum StakePoolError {
     /// Missing required sysvar account
     #[error("Missing required sysvar account")]
     MissingRequiredSysvar,
+    /// The stake pool account address is invalid or not derived from the state account.
+    #[error("InvalidStakePoolAddress")]
+    InvalidStakePoolAddress,
 }
 impl From<StakePoolError> for ProgramError {
     fn from(e: StakePoolError) -> Self {

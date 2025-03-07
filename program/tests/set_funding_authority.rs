@@ -57,7 +57,7 @@ async fn success_set_stake_deposit_authority() {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::set_funding_authority(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             Some(&new_authority.pubkey()),
             FundingType::StakeDeposit,
@@ -67,7 +67,7 @@ async fn success_set_stake_deposit_authority() {
     transaction.sign(&[&payer, &stake_pool_accounts.manager], recent_blockhash);
     banks_client.process_transaction(transaction).await.unwrap();
 
-    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool.pubkey()).await;
+    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool).await;
     let stake_pool =
         try_from_slice_unchecked::<state::StakePool>(stake_pool.data.as_slice()).unwrap();
 
@@ -76,7 +76,7 @@ async fn success_set_stake_deposit_authority() {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::set_funding_authority(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             None,
             FundingType::StakeDeposit,
@@ -86,13 +86,13 @@ async fn success_set_stake_deposit_authority() {
     transaction.sign(&[&payer, &stake_pool_accounts.manager], recent_blockhash);
     banks_client.process_transaction(transaction).await.unwrap();
 
-    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool.pubkey()).await;
+    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool).await;
     let stake_pool =
         try_from_slice_unchecked::<state::StakePool>(stake_pool.data.as_slice()).unwrap();
 
     assert_eq!(
         stake_pool.stake_deposit_authority,
-        find_deposit_authority_program_address(&id(), &stake_pool_accounts.stake_pool.pubkey()).0
+        find_deposit_authority_program_address(&id(), &stake_pool_accounts.stake_pool).0
     );
 }
 
@@ -104,7 +104,7 @@ async fn fail_wrong_manager() {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::set_funding_authority(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &new_authority.pubkey(),
             Some(&new_authority.pubkey()),
             FundingType::StakeDeposit,
@@ -140,7 +140,7 @@ async fn fail_without_signature() {
         .try_to_vec()
         .unwrap();
     let accounts = vec![
-        AccountMeta::new(stake_pool_accounts.stake_pool.pubkey(), false),
+        AccountMeta::new(stake_pool_accounts.stake_pool, false),
         AccountMeta::new_readonly(stake_pool_accounts.manager.pubkey(), false),
         AccountMeta::new_readonly(new_authority.pubkey(), false),
     ];
@@ -179,7 +179,7 @@ async fn success_set_sol_deposit_authority() {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::set_funding_authority(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             Some(&new_sol_deposit_authority.pubkey()),
             FundingType::SolDeposit,
@@ -189,7 +189,7 @@ async fn success_set_sol_deposit_authority() {
     transaction.sign(&[&payer, &stake_pool_accounts.manager], recent_blockhash);
     banks_client.process_transaction(transaction).await.unwrap();
 
-    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool.pubkey()).await;
+    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool).await;
     let stake_pool =
         try_from_slice_unchecked::<state::StakePool>(stake_pool.data.as_slice()).unwrap();
 
@@ -201,7 +201,7 @@ async fn success_set_sol_deposit_authority() {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::set_funding_authority(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             None,
             FundingType::SolDeposit,
@@ -211,7 +211,7 @@ async fn success_set_sol_deposit_authority() {
     transaction.sign(&[&payer, &stake_pool_accounts.manager], recent_blockhash);
     banks_client.process_transaction(transaction).await.unwrap();
 
-    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool.pubkey()).await;
+    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool).await;
     let stake_pool =
         try_from_slice_unchecked::<state::StakePool>(stake_pool.data.as_slice()).unwrap();
 
@@ -226,7 +226,7 @@ async fn success_set_withdraw_authority() {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::set_funding_authority(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             Some(&new_authority.pubkey()),
             FundingType::SolWithdraw,
@@ -236,7 +236,7 @@ async fn success_set_withdraw_authority() {
     transaction.sign(&[&payer, &stake_pool_accounts.manager], recent_blockhash);
     banks_client.process_transaction(transaction).await.unwrap();
 
-    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool.pubkey()).await;
+    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool).await;
     let stake_pool =
         try_from_slice_unchecked::<state::StakePool>(stake_pool.data.as_slice()).unwrap();
 
@@ -248,7 +248,7 @@ async fn success_set_withdraw_authority() {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::set_funding_authority(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             None,
             FundingType::SolWithdraw,
@@ -258,7 +258,7 @@ async fn success_set_withdraw_authority() {
     transaction.sign(&[&payer, &stake_pool_accounts.manager], recent_blockhash);
     banks_client.process_transaction(transaction).await.unwrap();
 
-    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool.pubkey()).await;
+    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool).await;
     let stake_pool =
         try_from_slice_unchecked::<state::StakePool>(stake_pool.data.as_slice()).unwrap();
 

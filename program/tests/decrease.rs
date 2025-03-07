@@ -182,7 +182,7 @@ async fn fail_with_wrong_withdraw_authority() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::decrease_validator_stake_with_reserve(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.staker.pubkey(),
             &wrong_authority,
             &stake_pool_accounts.validator_list.pubkey(),
@@ -229,7 +229,7 @@ async fn fail_with_wrong_validator_list() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::decrease_validator_stake_with_reserve(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.staker.pubkey(),
             &stake_pool_accounts.withdraw_authority,
             &stake_pool_accounts.validator_list.pubkey(),
@@ -269,7 +269,7 @@ async fn fail_with_unknown_validator() {
         &mut context.banks_client,
         &context.payer,
         &context.last_blockhash,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         0,
     )
     .await;
@@ -277,7 +277,7 @@ async fn fail_with_unknown_validator() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::decrease_validator_stake_with_reserve(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.staker.pubkey(),
             &stake_pool_accounts.withdraw_authority,
             &stake_pool_accounts.validator_list.pubkey(),
@@ -334,7 +334,7 @@ async fn fail_twice_diff_seed(instruction_type: DecreaseInstruction) {
     let transient_stake_address = find_transient_stake_program_address(
         &id(),
         &validator_stake.vote.pubkey(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         transient_stake_seed,
     )
     .0;
@@ -428,7 +428,7 @@ async fn twice(
         // no ephemeral account
         let ephemeral_stake = find_ephemeral_stake_program_address(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             0,
         )
         .0;

@@ -145,7 +145,7 @@ async fn success(token_program_id: Pubkey) {
     // Save stake pool state before depositing
     let pre_stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let pre_stake_pool =
@@ -197,7 +197,7 @@ async fn success(token_program_id: Pubkey) {
     // Stake pool should add its balance to the pool balance
     let post_stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let post_stake_pool =
@@ -317,7 +317,7 @@ async fn success_with_extra_stake_lamports() {
     // Save stake pool state before depositing
     let pre_stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let pre_stake_pool =
@@ -374,7 +374,7 @@ async fn success_with_extra_stake_lamports() {
     // update_stake_pool_balance is called
     let post_stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
 
@@ -479,7 +479,7 @@ async fn fail_with_wrong_stake_program_id() {
     let wrong_stake_program = Pubkey::new_unique();
 
     let accounts = vec![
-        AccountMeta::new(stake_pool_accounts.stake_pool.pubkey(), false),
+        AccountMeta::new(stake_pool_accounts.stake_pool, false),
         AccountMeta::new(stake_pool_accounts.validator_list.pubkey(), false),
         AccountMeta::new_readonly(stake_pool_accounts.stake_deposit_authority, false),
         AccountMeta::new_readonly(stake_pool_accounts.withdraw_authority, false),
@@ -540,7 +540,7 @@ async fn fail_with_wrong_token_program_id() {
     let mut transaction = Transaction::new_with_payer(
         &instruction::deposit_stake(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.validator_list.pubkey(),
             &stake_pool_accounts.withdraw_authority,
             &deposit_stake,
@@ -631,7 +631,7 @@ async fn fail_with_unknown_validator() {
         &mut banks_client,
         &payer,
         &recent_blockhash,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         0,
     )
     .await;
@@ -826,7 +826,7 @@ async fn success_with_slippage(token_program_id: Pubkey) {
     // Save stake pool state before depositing
     let pre_stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let pre_stake_pool =
@@ -888,7 +888,7 @@ async fn success_with_slippage(token_program_id: Pubkey) {
     // Stake pool should add its balance to the pool balance
     let post_stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let post_stake_pool =

@@ -33,7 +33,7 @@ async fn success_initialize() {
 
     // Stake pool now exists
     let stake_pool_account =
-        get_account(&mut banks_client, &stake_pool_accounts.stake_pool.pubkey()).await;
+        get_account(&mut banks_client, &stake_pool_accounts.stake_pool).await;
     let stake_pool =
         try_from_slice_unchecked::<StakePool>(stake_pool_account.data.as_slice()).unwrap();
     assert_eq!(stake_pool.stake_deposit_authority, deposit_authority);

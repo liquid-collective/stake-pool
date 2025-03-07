@@ -54,6 +54,9 @@ pub struct StakePool {
     /// managing stake distribution
     pub staker: Pubkey,
 
+    /// State account
+    pub state: Pubkey,
+
     /// Stake deposit authority
     ///
     /// If a depositor pubkey is specified on initialization, then deposits must

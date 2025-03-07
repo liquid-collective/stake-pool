@@ -188,7 +188,7 @@ async fn success_empty_out_stake_with_fee() {
         validator_stake_account.lamports - minimum_stake_lamports(&meta, stake_minimum_delegation);
     let stake_pool_account = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool =

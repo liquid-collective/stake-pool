@@ -93,7 +93,7 @@ async fn success(token_program_id: Pubkey) {
         .unwrap();
 
     // Stake pool now exists
-    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool.pubkey()).await;
+    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool).await;
     assert_eq!(stake_pool.data.len(), get_packed_len::<state::StakePool>());
     assert_eq!(stake_pool.owner, id());
 
@@ -288,7 +288,7 @@ async fn fail_with_wrong_max_validators() {
         &[
             system_instruction::create_account(
                 &payer.pubkey(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 rent_stake_pool,
                 get_packed_len::<state::StakePool>() as u64,
                 &id(),
@@ -302,9 +302,10 @@ async fn fail_with_wrong_max_validators() {
             ),
             instruction::initialize(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.manager.pubkey(),
                 &stake_pool_accounts.staker.pubkey(),
+                &stake_pool_accounts.state,
                 &stake_pool_accounts.withdraw_authority,
                 &stake_pool_accounts.validator_list.pubkey(),
                 &stake_pool_accounts.reserve_stake.pubkey(),
@@ -324,7 +325,7 @@ async fn fail_with_wrong_max_validators() {
     transaction.sign(
         &[
             &payer,
-            &stake_pool_accounts.stake_pool,
+            // &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.validator_list,
             &stake_pool_accounts.manager,
         ],
@@ -390,6 +391,7 @@ async fn fail_with_wrong_mint_authority() {
         &stake_pool_accounts.pool_fee_account.pubkey(),
         &stake_pool_accounts.manager,
         &stake_pool_accounts.staker.pubkey(),
+        &stake_pool_accounts.state,
         &stake_pool_accounts.withdraw_authority,
         &None,
         &stake_pool_accounts.epoch_fee,
@@ -485,6 +487,7 @@ async fn allow_pool_with_freeze_authority() {
         &pool_fee_account.pubkey(),
         &stake_pool_accounts.manager,
         &stake_pool_accounts.staker.pubkey(),
+        &stake_pool_accounts.state,
         &stake_pool_accounts.withdraw_authority,
         &None,
         &stake_pool_accounts.epoch_fee,
@@ -544,6 +547,7 @@ async fn success_with_supported_extensions() {
         &pool_fee_account.pubkey(),
         &stake_pool_accounts.manager,
         &stake_pool_accounts.staker.pubkey(),
+        &stake_pool_accounts.state,
         &stake_pool_accounts.withdraw_authority,
         &None,
         &stake_pool_accounts.epoch_fee,
@@ -600,6 +604,7 @@ async fn fail_with_unsupported_mint_extension() {
         &pool_fee_account.pubkey(),
         &stake_pool_accounts.manager,
         &stake_pool_accounts.staker.pubkey(),
+        &stake_pool_accounts.state,
         &stake_pool_accounts.withdraw_authority,
         &None,
         &stake_pool_accounts.epoch_fee,
@@ -665,6 +670,7 @@ async fn fail_with_unsupported_account_extension() {
         &pool_fee_account.pubkey(),
         &stake_pool_accounts.manager,
         &stake_pool_accounts.staker.pubkey(),
+        &stake_pool_accounts.state,
         &stake_pool_accounts.withdraw_authority,
         &None,
         &stake_pool_accounts.epoch_fee,
@@ -734,7 +740,7 @@ async fn fail_with_wrong_token_program_id() {
         &[
             system_instruction::create_account(
                 &payer.pubkey(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 rent_stake_pool,
                 get_packed_len::<state::StakePool>() as u64,
                 &id(),
@@ -748,9 +754,10 @@ async fn fail_with_wrong_token_program_id() {
             ),
             instruction::initialize(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.manager.pubkey(),
                 &stake_pool_accounts.staker.pubkey(),
+                &stake_pool_accounts.state,
                 &stake_pool_accounts.withdraw_authority,
                 &stake_pool_accounts.validator_list.pubkey(),
                 &stake_pool_accounts.reserve_stake.pubkey(),
@@ -770,7 +777,7 @@ async fn fail_with_wrong_token_program_id() {
     transaction.sign(
         &[
             &payer,
-            &stake_pool_accounts.stake_pool,
+            // &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.validator_list,
             &stake_pool_accounts.manager,
         ],
@@ -841,7 +848,7 @@ async fn fail_with_fee_owned_by_wrong_token_program_id() {
         &[
             system_instruction::create_account(
                 &payer.pubkey(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 rent_stake_pool,
                 get_packed_len::<state::StakePool>() as u64,
                 &id(),
@@ -855,9 +862,10 @@ async fn fail_with_fee_owned_by_wrong_token_program_id() {
             ),
             instruction::initialize(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.manager.pubkey(),
                 &stake_pool_accounts.staker.pubkey(),
+                &stake_pool_accounts.state,
                 &stake_pool_accounts.withdraw_authority,
                 &stake_pool_accounts.validator_list.pubkey(),
                 &stake_pool_accounts.reserve_stake.pubkey(),
@@ -877,7 +885,7 @@ async fn fail_with_fee_owned_by_wrong_token_program_id() {
     transaction.sign(
         &[
             &payer,
-            &stake_pool_accounts.stake_pool,
+            // &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.validator_list,
             &stake_pool_accounts.manager,
         ],
@@ -948,6 +956,7 @@ async fn fail_with_wrong_fee_account() {
         &stake_pool_accounts.pool_fee_account.pubkey(),
         &stake_pool_accounts.manager,
         &stake_pool_accounts.staker.pubkey(),
+        &stake_pool_accounts.state,
         &stake_pool_accounts.withdraw_authority,
         &None,
         &stake_pool_accounts.epoch_fee,
@@ -1027,7 +1036,7 @@ async fn fail_with_not_rent_exempt_pool() {
         &[
             system_instruction::create_account(
                 &payer.pubkey(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 1,
                 get_packed_len::<state::StakePool>() as u64,
                 &id(),
@@ -1041,9 +1050,10 @@ async fn fail_with_not_rent_exempt_pool() {
             ),
             instruction::initialize(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.manager.pubkey(),
                 &stake_pool_accounts.staker.pubkey(),
+                &stake_pool_accounts.state,
                 &stake_pool_accounts.withdraw_authority,
                 &stake_pool_accounts.validator_list.pubkey(),
                 &stake_pool_accounts.reserve_stake.pubkey(),
@@ -1063,7 +1073,7 @@ async fn fail_with_not_rent_exempt_pool() {
     transaction.sign(
         &[
             &payer,
-            &stake_pool_accounts.stake_pool,
+            // &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.validator_list,
             &stake_pool_accounts.manager,
         ],
@@ -1106,7 +1116,7 @@ async fn fail_with_not_rent_exempt_validator_list() {
         &[
             system_instruction::create_account(
                 &payer.pubkey(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 rent_stake_pool,
                 get_packed_len::<state::StakePool>() as u64,
                 &id(),
@@ -1120,9 +1130,10 @@ async fn fail_with_not_rent_exempt_validator_list() {
             ),
             instruction::initialize(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.manager.pubkey(),
                 &stake_pool_accounts.staker.pubkey(),
+                &stake_pool_accounts.state,
                 &stake_pool_accounts.withdraw_authority,
                 &stake_pool_accounts.validator_list.pubkey(),
                 &stake_pool_accounts.reserve_stake.pubkey(),
@@ -1142,7 +1153,7 @@ async fn fail_with_not_rent_exempt_validator_list() {
     transaction.sign(
         &[
             &payer,
-            &stake_pool_accounts.stake_pool,
+            // &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.validator_list,
             &stake_pool_accounts.manager,
         ],
@@ -1193,7 +1204,7 @@ async fn fail_without_manager_signature() {
     };
     let data = init_data.try_to_vec().unwrap();
     let accounts = vec![
-        AccountMeta::new(stake_pool_accounts.stake_pool.pubkey(), true),
+        AccountMeta::new(stake_pool_accounts.stake_pool, true),
         AccountMeta::new_readonly(stake_pool_accounts.manager.pubkey(), false),
         AccountMeta::new_readonly(stake_pool_accounts.staker.pubkey(), false),
         AccountMeta::new(stake_pool_accounts.validator_list.pubkey(), false),
@@ -1214,7 +1225,7 @@ async fn fail_without_manager_signature() {
         &[
             system_instruction::create_account(
                 &payer.pubkey(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 rent_stake_pool,
                 get_packed_len::<state::StakePool>() as u64,
                 &id(),
@@ -1233,7 +1244,7 @@ async fn fail_without_manager_signature() {
     transaction.sign(
         &[
             &payer,
-            &stake_pool_accounts.stake_pool,
+            // &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.validator_list,
         ],
         recent_blockhash,
@@ -1316,6 +1327,7 @@ async fn fail_with_pre_minted_pool_tokens() {
         &stake_pool_accounts.pool_fee_account.pubkey(),
         &stake_pool_accounts.manager,
         &stake_pool_accounts.staker.pubkey(),
+        &stake_pool_accounts.state,
         &stake_pool_accounts.withdraw_authority,
         &None,
         &stake_pool_accounts.epoch_fee,
@@ -1385,6 +1397,7 @@ async fn fail_with_bad_reserve() {
             &stake_pool_accounts.pool_fee_account.pubkey(),
             &stake_pool_accounts.manager,
             &stake_pool_accounts.staker.pubkey(),
+            &stake_pool_accounts.state,
             &stake_pool_accounts.withdraw_authority,
             &None,
             &stake_pool_accounts.epoch_fee,
@@ -1437,6 +1450,7 @@ async fn fail_with_bad_reserve() {
             &stake_pool_accounts.pool_fee_account.pubkey(),
             &stake_pool_accounts.manager,
             &stake_pool_accounts.staker.pubkey(),
+            &stake_pool_accounts.state,
             &stake_pool_accounts.withdraw_authority,
             &None,
             &stake_pool_accounts.epoch_fee,
@@ -1492,6 +1506,7 @@ async fn fail_with_bad_reserve() {
             &stake_pool_accounts.pool_fee_account.pubkey(),
             &stake_pool_accounts.manager,
             &stake_pool_accounts.staker.pubkey(),
+            &stake_pool_accounts.state,
             &stake_pool_accounts.withdraw_authority,
             &None,
             &stake_pool_accounts.epoch_fee,
@@ -1548,6 +1563,7 @@ async fn fail_with_bad_reserve() {
             &stake_pool_accounts.pool_fee_account.pubkey(),
             &stake_pool_accounts.manager,
             &stake_pool_accounts.staker.pubkey(),
+            &stake_pool_accounts.state,
             &stake_pool_accounts.withdraw_authority,
             &None,
             &stake_pool_accounts.epoch_fee,

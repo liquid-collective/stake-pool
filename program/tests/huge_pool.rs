@@ -51,7 +51,7 @@ async fn setup(
         stake_pool_accounts.compute_unit_limit = Some(1_400_000);
     }
 
-    let stake_pool_pubkey = stake_pool_accounts.stake_pool.pubkey();
+    let stake_pool_pubkey = stake_pool_accounts.stake_pool;
     let (mut stake_pool, mut validator_list) = stake_pool_accounts.state();
     stake_pool.last_update_epoch = FIRST_NORMAL_EPOCH;
 
@@ -80,7 +80,7 @@ async fn setup(
     );
     add_stake_pool_account(
         &mut program_test,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         &stake_pool,
     );
     add_validator_list_account(
@@ -216,14 +216,14 @@ async fn remove_validator_from_pool(max_validators: u32) {
     let (stake_address, _) = find_stake_program_address(
         &id(),
         &first_vote,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         None,
     );
     let transient_stake_seed = u64::MAX;
     let (transient_stake_address, _) = find_transient_stake_program_address(
         &id(),
         &first_vote,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         transient_stake_seed,
     );
 
@@ -243,13 +243,13 @@ async fn remove_validator_from_pool(max_validators: u32) {
     let (stake_address, _) = find_stake_program_address(
         &id(),
         &middle_vote,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         None,
     );
     let (transient_stake_address, _) = find_transient_stake_program_address(
         &id(),
         &middle_vote,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         transient_stake_seed,
     );
 
@@ -269,13 +269,13 @@ async fn remove_validator_from_pool(max_validators: u32) {
     let (stake_address, _) = find_stake_program_address(
         &id(),
         &last_vote,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         None,
     );
     let (transient_stake_address, _) = find_transient_stake_program_address(
         &id(),
         &last_vote,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         transient_stake_seed,
     );
 
@@ -343,7 +343,7 @@ async fn remove_validator_from_pool(max_validators: u32) {
 
     let mut instructions = vec![instruction::update_validator_list_balance(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         &stake_pool_accounts.withdraw_authority,
         &stake_pool_accounts.validator_list.pubkey(),
         &stake_pool_accounts.reserve_stake.pubkey(),
@@ -368,7 +368,7 @@ async fn remove_validator_from_pool(max_validators: u32) {
 
     let mut instructions = vec![instruction::update_validator_list_balance(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         &stake_pool_accounts.withdraw_authority,
         &stake_pool_accounts.validator_list.pubkey(),
         &stake_pool_accounts.reserve_stake.pubkey(),
@@ -449,7 +449,7 @@ async fn add_validator_to_pool(max_validators: u32) {
         setup(max_validators, max_validators - 1, STAKE_AMOUNT).await;
 
     let last_index = max_validators as usize - 1;
-    let stake_pool_pubkey = stake_pool_accounts.stake_pool.pubkey();
+    let stake_pool_pubkey = stake_pool_accounts.stake_pool;
     let (stake_address, _) =
         find_stake_program_address(&id(), &test_vote_address, &stake_pool_pubkey, None);
 
@@ -554,7 +554,7 @@ async fn set_preferred(max_validators: u32) {
 
     let stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(stake_pool.data.as_slice()).unwrap();
@@ -579,7 +579,7 @@ async fn deposit_stake(max_validators: u32) {
     let (stake_address, _) = find_stake_program_address(
         &id(),
         &vote_pubkey,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         None,
     );
 
@@ -608,7 +608,7 @@ async fn withdraw(max_validators: u32) {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::set_funding_authority(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             Some(&sol_withdraw_authority.pubkey()),
             FundingType::SolWithdraw,
@@ -625,7 +625,7 @@ async fn withdraw(max_validators: u32) {
     let (stake_address, _) = find_stake_program_address(
         &id(),
         &vote_pubkey,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         None,
     );
 
@@ -683,7 +683,7 @@ async fn cleanup_all(max_validators: u32) {
         stake_pool_accounts.compute_unit_limit = Some(1_400_000);
     }
 
-    let stake_pool_pubkey = stake_pool_accounts.stake_pool.pubkey();
+    let stake_pool_pubkey = stake_pool_accounts.stake_pool;
     let (mut stake_pool, mut validator_list) = stake_pool_accounts.state();
 
     for _ in 0..max_validators {
@@ -705,7 +705,7 @@ async fn cleanup_all(max_validators: u32) {
 
     add_stake_pool_account(
         &mut program_test,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         &stake_pool,
     );
     add_validator_list_account(

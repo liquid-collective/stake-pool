@@ -58,7 +58,7 @@ async fn setup(
     let mut deposit_accounts: Vec<DepositStakeAccount> = vec![];
     for i in 0..num_validators {
         let stake_account = ValidatorStakeAccount::new(
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             NonZeroU32::new(i as u32),
             u64::MAX,
         );
@@ -215,7 +215,7 @@ async fn check_ignored_hijacked_transient_stake(
     )
     .await;
     let (withdraw_authority, _) =
-        find_withdraw_authority_program_address(&id(), &stake_pool_accounts.stake_pool.pubkey());
+        find_withdraw_authority_program_address(&id(), &stake_pool_accounts.stake_pool);
 
     println!("Decrease from all validators");
     let stake_account = &stake_accounts[0];
@@ -245,7 +245,7 @@ async fn check_ignored_hijacked_transient_stake(
     let transient_stake_address = find_transient_stake_program_address(
         &id(),
         &stake_account.vote.pubkey(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         stake_account.transient_stake_seed,
     )
     .0;
@@ -253,7 +253,7 @@ async fn check_ignored_hijacked_transient_stake(
         &[
             instruction::update_validator_list_balance(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.withdraw_authority,
                 &stake_pool_accounts.validator_list.pubkey(),
                 &stake_pool_accounts.reserve_stake.pubkey(),
@@ -274,7 +274,7 @@ async fn check_ignored_hijacked_transient_stake(
             ),
             instruction::update_stake_pool_balance(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.withdraw_authority,
                 &stake_pool_accounts.validator_list.pubkey(),
                 &stake_pool_accounts.reserve_stake.pubkey(),
@@ -284,7 +284,7 @@ async fn check_ignored_hijacked_transient_stake(
             ),
             instruction::cleanup_removed_validator_entries(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.validator_list.pubkey(),
             ),
         ],
@@ -329,7 +329,7 @@ async fn check_ignored_hijacked_transient_stake(
 
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();
@@ -381,7 +381,7 @@ async fn check_ignored_hijacked_validator_stake(
     )
     .await;
     let (withdraw_authority, _) =
-        find_withdraw_authority_program_address(&id(), &stake_pool_accounts.stake_pool.pubkey());
+        find_withdraw_authority_program_address(&id(), &stake_pool_accounts.stake_pool);
 
     let stake_account = &stake_accounts[0];
     let error = stake_pool_accounts
@@ -422,7 +422,7 @@ async fn check_ignored_hijacked_validator_stake(
         &[
             instruction::update_validator_list_balance(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.withdraw_authority,
                 &stake_pool_accounts.validator_list.pubkey(),
                 &stake_pool_accounts.reserve_stake.pubkey(),
@@ -443,7 +443,7 @@ async fn check_ignored_hijacked_validator_stake(
             ),
             instruction::update_stake_pool_balance(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.withdraw_authority,
                 &stake_pool_accounts.validator_list.pubkey(),
                 &stake_pool_accounts.reserve_stake.pubkey(),
@@ -453,7 +453,7 @@ async fn check_ignored_hijacked_validator_stake(
             ),
             instruction::cleanup_removed_validator_entries(
                 &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.stake_pool,
                 &stake_pool_accounts.validator_list.pubkey(),
             ),
         ],
@@ -498,7 +498,7 @@ async fn check_ignored_hijacked_validator_stake(
 
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();
@@ -531,7 +531,7 @@ async fn check_ignored_hijacked_validator_stake(
     let (stake_account, _) = find_stake_program_address(
         &id(),
         &validator,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         seed,
     );
     let error = stake_pool_accounts
@@ -548,7 +548,7 @@ async fn check_ignored_hijacked_validator_stake(
 
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();

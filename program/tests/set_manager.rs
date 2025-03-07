@@ -74,7 +74,7 @@ async fn test_set_manager() {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::set_manager(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             &new_manager.pubkey(),
             &new_pool_fee.pubkey(),
@@ -87,7 +87,7 @@ async fn test_set_manager() {
     );
     banks_client.process_transaction(transaction).await.unwrap();
 
-    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool.pubkey()).await;
+    let stake_pool = get_account(&mut banks_client, &stake_pool_accounts.stake_pool).await;
     let stake_pool =
         try_from_slice_unchecked::<state::StakePool>(stake_pool.data.as_slice()).unwrap();
 
@@ -102,7 +102,7 @@ async fn test_set_manager_by_malicious() {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::set_manager(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &new_manager.pubkey(),
             &new_manager.pubkey(),
             &new_pool_fee.pubkey(),
@@ -138,7 +138,7 @@ async fn test_set_manager_without_existing_signature() {
         .try_to_vec()
         .unwrap();
     let accounts = vec![
-        AccountMeta::new(stake_pool_accounts.stake_pool.pubkey(), false),
+        AccountMeta::new(stake_pool_accounts.stake_pool, false),
         AccountMeta::new_readonly(stake_pool_accounts.manager.pubkey(), false),
         AccountMeta::new_readonly(new_manager.pubkey(), true),
         AccountMeta::new_readonly(new_pool_fee.pubkey(), false),
@@ -181,7 +181,7 @@ async fn test_set_manager_without_new_signature() {
         .try_to_vec()
         .unwrap();
     let accounts = vec![
-        AccountMeta::new(stake_pool_accounts.stake_pool.pubkey(), false),
+        AccountMeta::new(stake_pool_accounts.stake_pool, false),
         AccountMeta::new_readonly(stake_pool_accounts.manager.pubkey(), true),
         AccountMeta::new_readonly(new_manager.pubkey(), false),
         AccountMeta::new_readonly(new_pool_fee.pubkey(), false),
@@ -262,7 +262,7 @@ async fn test_set_manager_with_wrong_mint_for_pool_fee_acc() {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::set_manager(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             &new_manager.pubkey(),
             &new_pool_fee.pubkey(),

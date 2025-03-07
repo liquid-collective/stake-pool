@@ -375,7 +375,7 @@ async fn success_with_reserve() {
     // first and only deposit, lamports:pool 1:1
     let stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool =

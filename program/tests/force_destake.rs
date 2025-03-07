@@ -38,7 +38,7 @@ async fn setup(
 ) -> (ProgramTestContext, Option<NonZeroU32>) {
     let mut program_test = program_test();
 
-    let stake_pool_pubkey = stake_pool_accounts.stake_pool.pubkey();
+    let stake_pool_pubkey = stake_pool_accounts.stake_pool;
     let (mut stake_pool, mut validator_list) = stake_pool_accounts.state();
 
     let _ = add_vote_account_with_pubkey(voter_pubkey, &mut program_test);
@@ -82,7 +82,7 @@ async fn setup(
     );
     add_stake_pool_account(
         &mut program_test,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         &stake_pool,
     );
     add_validator_list_account(
@@ -139,7 +139,7 @@ async fn success_update() {
     let (stake_address, _) = find_stake_program_address(
         &id(),
         &voter_pubkey,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         validator_seed,
     );
     let validator_stake_lamports = context
@@ -201,14 +201,14 @@ async fn fail_increase() {
     let (stake_address, _) = find_stake_program_address(
         &id(),
         &voter_pubkey,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         validator_seed,
     );
     let transient_stake_seed = 0;
     let transient_stake_address = find_transient_stake_program_address(
         &id(),
         &voter_pubkey,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         transient_stake_seed,
     )
     .0;
@@ -280,14 +280,14 @@ async fn success_remove_validator() {
     let (stake_address, _) = find_stake_program_address(
         &id(),
         &voter_pubkey,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         validator_seed,
     );
     let transient_stake_seed = 0;
     let transient_stake_address = find_transient_stake_program_address(
         &id(),
         &voter_pubkey,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         transient_stake_seed,
     )
     .0;

@@ -61,7 +61,8 @@ pub enum StakePoolInstruction {
     ///      authority.
     ///   7. `[]` Pool account to deposit the generated fee for manager.
     ///   8. `[]` Token program id
-    ///   9. `[]` (Optional) Deposit authority that must sign all deposits.
+    ///   9. `[]` State account that owns this stake pool
+    ///  10. `[]` (Optional) Deposit authority that must sign all deposits.
     ///      Defaults to the program address generated using
     ///      `find_deposit_authority_program_address`, making deposits
     ///      permissionless.
@@ -735,6 +736,7 @@ pub fn initialize(
     pool_mint: &Pubkey,
     manager_pool_account: &Pubkey,
     token_program_id: &Pubkey,
+    state_account: &Pubkey,
     deposit_authority: Option<Pubkey>,
     fee: Fee,
     withdrawal_fee: Fee,
@@ -760,6 +762,7 @@ pub fn initialize(
         AccountMeta::new(*pool_mint, false),
         AccountMeta::new(*manager_pool_account, false),
         AccountMeta::new_readonly(*token_program_id, false),
+        AccountMeta::new_readonly(*state_account, false),
     ];
     if let Some(deposit_authority) = deposit_authority {
         accounts.push(AccountMeta::new_readonly(deposit_authority, true));

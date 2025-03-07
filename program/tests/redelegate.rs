@@ -155,7 +155,7 @@ async fn success() {
     let ephemeral_stake_seed = 100;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;
@@ -426,7 +426,7 @@ async fn success_with_increasing_stake() {
     let ephemeral_stake_seed = 10;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;
@@ -438,7 +438,7 @@ async fn success_with_increasing_stake() {
     let (wrong_transient_stake_account, _) = find_transient_stake_program_address(
         &id(),
         &destination_validator_stake.vote.pubkey(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         wrong_transient_stake_seed,
     );
     let error = stake_pool_accounts
@@ -669,7 +669,7 @@ async fn fail_with_decreasing_stake() {
     let ephemeral_stake_seed = 20;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;
@@ -717,7 +717,7 @@ async fn fail_with_wrong_withdraw_authority() {
     let ephemeral_stake_seed = 2;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;
@@ -726,7 +726,7 @@ async fn fail_with_wrong_withdraw_authority() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::redelegate(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.staker.pubkey(),
             &wrong_withdraw_authority,
             &stake_pool_accounts.validator_list.pubkey(),
@@ -778,7 +778,7 @@ async fn fail_with_wrong_validator_list() {
     let ephemeral_stake_seed = 2;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;
@@ -787,7 +787,7 @@ async fn fail_with_wrong_validator_list() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::redelegate(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.staker.pubkey(),
             &stake_pool_accounts.withdraw_authority,
             &wrong_validator_list,
@@ -839,7 +839,7 @@ async fn fail_with_wrong_reserve() {
     let ephemeral_stake_seed = 2;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;
@@ -848,7 +848,7 @@ async fn fail_with_wrong_reserve() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::redelegate(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.staker.pubkey(),
             &stake_pool_accounts.withdraw_authority,
             &stake_pool_accounts.validator_list.pubkey(),
@@ -900,7 +900,7 @@ async fn fail_with_wrong_staker() {
     let ephemeral_stake_seed = 2;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;
@@ -909,7 +909,7 @@ async fn fail_with_wrong_staker() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::redelegate(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &wrong_staker.pubkey(),
             &stake_pool_accounts.withdraw_authority,
             &stake_pool_accounts.validator_list.pubkey(),
@@ -962,7 +962,7 @@ async fn fail_with_unknown_validator() {
         &mut context.banks_client,
         &context.payer,
         &last_blockhash,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         redelegate_lamports,
     )
     .await;
@@ -970,7 +970,7 @@ async fn fail_with_unknown_validator() {
     let ephemeral_stake_seed = 42;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;
@@ -1076,7 +1076,7 @@ async fn fail_redelegate_twice() {
     let ephemeral_stake_seed = 100;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;
@@ -1148,7 +1148,7 @@ async fn fail_with_small_lamport_amount() {
     let ephemeral_stake_seed = 7_000;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;
@@ -1202,7 +1202,7 @@ async fn fail_drain_source_account() {
     let ephemeral_stake_seed = 2;
     let ephemeral_stake = find_ephemeral_stake_program_address(
         &id(),
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
         ephemeral_stake_seed,
     )
     .0;

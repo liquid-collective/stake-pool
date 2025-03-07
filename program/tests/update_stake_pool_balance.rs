@@ -72,7 +72,7 @@ async fn setup(
     let mut stake_accounts: Vec<ValidatorStakeAccount> = vec![];
     for i in 0..num_validators {
         let stake_account = ValidatorStakeAccount::new(
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             NonZeroU32::new(i as u32),
             u64::MAX,
         );
@@ -146,7 +146,7 @@ async fn success() {
     .await;
     let stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(stake_pool.data.as_slice()).unwrap();
@@ -199,7 +199,7 @@ async fn success() {
     .await;
     let stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(stake_pool.data.as_slice()).unwrap();
@@ -244,7 +244,7 @@ async fn success_absorbing_extra_lamports() {
     .await;
     let stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(stake_pool.data.as_slice()).unwrap();

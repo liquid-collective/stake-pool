@@ -729,12 +729,26 @@ impl Processor {
         let pool_mint_info = next_account_info(account_info_iter)?;
         let manager_fee_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
+        let state_info = next_account_info(account_info_iter)?;
 
         let rent = Rent::get()?;
 
         if !manager_info.is_signer {
             msg!("Manager did not sign initialization");
             return Err(StakePoolError::SignatureMissing.into());
+        }
+
+        // Verify that the stake pool account is derived from the state's public key
+        let (expected_stake_pool, _) = Pubkey::find_program_address(
+            &[
+                b"stake_pool",
+                state_info.key.as_ref(),
+            ],
+            program_id,
+        );
+        if expected_stake_pool != *stake_pool_info.key {
+            msg!("Invalid stake pool account address");
+            return Err(StakePoolError::InvalidStakePoolAddress.into());
         }
 
         if stake_pool_info.key == validator_list_info.key {
@@ -918,6 +932,7 @@ impl Processor {
         stake_pool.account_type = AccountType::StakePool;
         stake_pool.manager = *manager_info.key;
         stake_pool.staker = *staker_info.key;
+        stake_pool.state = *state_info.key;
         stake_pool.stake_deposit_authority = stake_deposit_authority;
         stake_pool.stake_withdraw_bump_seed = stake_withdraw_bump_seed;
         stake_pool.validator_list = *validator_list_info.key;
@@ -4123,6 +4138,7 @@ impl PrintProgramError for StakePoolError {
             StakePoolError::IncorrectMintDecimals => msg!("Error: Provided mint does not have 9 decimals to match SOL"),
             StakePoolError::ReserveDepleted => msg!("Error: Pool reserve does not have enough lamports to fund rent-exempt reserve in split destination. Deposit more SOL in reserve, or pre-fund split destination with the rent-exempt reserve for a stake account."),
             StakePoolError::MissingRequiredSysvar => msg!("Missing required sysvar account"),
+            StakePoolError::InvalidStakePoolAddress => msg!("Error: Invalid stake pool account address"),
         }
     }
 }

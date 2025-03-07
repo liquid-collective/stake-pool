@@ -51,7 +51,7 @@ async fn setup(
     let mut deposit_accounts: Vec<DepositStakeAccount> = vec![];
     for i in 0..num_validators {
         let stake_account = ValidatorStakeAccount::new(
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             NonZeroU32::new(i as u32),
             u64::MAX,
         );
@@ -186,7 +186,7 @@ async fn success_with_normal() {
     let stake_rent = rent.minimum_balance(std::mem::size_of::<StakeStateV2>());
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();
@@ -241,7 +241,7 @@ async fn success_with_normal() {
 
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();
@@ -318,7 +318,7 @@ async fn merge_into_reserve() {
 
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();
@@ -366,7 +366,7 @@ async fn merge_into_reserve() {
 
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();
@@ -454,7 +454,7 @@ async fn merge_into_validator_stake() {
     assert_eq!(pre_lamports, expected_lamports);
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();
@@ -492,7 +492,7 @@ async fn merge_into_validator_stake() {
     .await;
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();
@@ -726,7 +726,7 @@ async fn success_with_burned_tokens() {
 
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();
@@ -773,7 +773,7 @@ async fn success_with_burned_tokens() {
 
     let stake_pool_info = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data).unwrap();

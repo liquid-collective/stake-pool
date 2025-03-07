@@ -242,7 +242,7 @@ async fn success_with_referral_fee() {
     let mut transaction = Transaction::new_with_payer(
         &instruction::deposit_stake(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.validator_list.pubkey(),
             &stake_pool_accounts.withdraw_authority,
             &deposit_stake,
@@ -268,7 +268,7 @@ async fn success_with_referral_fee() {
         get_token_balance(&mut context.banks_client, &referrer_token_account.pubkey()).await;
     let stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool =
@@ -303,7 +303,7 @@ async fn fail_with_invalid_referrer() {
     let mut transaction = Transaction::new_with_payer(
         &instruction::deposit_stake(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.validator_list.pubkey(),
             &stake_pool_accounts.withdraw_authority,
             &deposit_stake,

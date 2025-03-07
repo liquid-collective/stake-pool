@@ -49,7 +49,7 @@ async fn success_stake() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::set_fee(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             FeeType::StakeDeposit(new_deposit_fee),
         )],
@@ -65,7 +65,7 @@ async fn success_stake() {
 
     let stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(stake_pool.data.as_slice()).unwrap();
@@ -87,7 +87,7 @@ async fn success_stake_increase_fee_from_0() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::set_fee(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             FeeType::StakeDeposit(new_deposit_fee),
         )],
@@ -103,7 +103,7 @@ async fn success_stake_increase_fee_from_0() {
 
     let stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(stake_pool.data.as_slice()).unwrap();
@@ -118,7 +118,7 @@ async fn fail_stake_wrong_manager() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::set_fee(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &wrong_manager.pubkey(),
             FeeType::StakeDeposit(new_deposit_fee),
         )],
@@ -154,7 +154,7 @@ async fn fail_stake_high_deposit_fee() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::set_fee(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             FeeType::StakeDeposit(new_deposit_fee),
         )],
@@ -186,7 +186,7 @@ async fn success_sol() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::set_fee(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             FeeType::SolDeposit(new_deposit_fee),
         )],
@@ -202,7 +202,7 @@ async fn success_sol() {
 
     let stake_pool = get_account(
         &mut context.banks_client,
-        &stake_pool_accounts.stake_pool.pubkey(),
+        &stake_pool_accounts.stake_pool,
     )
     .await;
     let stake_pool = try_from_slice_unchecked::<StakePool>(stake_pool.data.as_slice()).unwrap();
@@ -217,7 +217,7 @@ async fn fail_sol_wrong_manager() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::set_fee(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &wrong_manager.pubkey(),
             FeeType::SolDeposit(new_deposit_fee),
         )],
@@ -253,7 +253,7 @@ async fn fail_sol_high_deposit_fee() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction::set_fee(
             &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.stake_pool,
             &stake_pool_accounts.manager.pubkey(),
             FeeType::SolDeposit(new_deposit_fee),
         )],
