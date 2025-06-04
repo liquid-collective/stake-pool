@@ -1,6 +1,8 @@
 #![deny(missing_docs)]
 
 //! A program for creating and managing pools of stake
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 
 pub mod big_vec;
 pub mod error;

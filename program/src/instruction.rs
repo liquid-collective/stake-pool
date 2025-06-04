@@ -1,4 +1,6 @@
 //! Instruction types
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 
 // Remove the following `allow` when `Redelegate` is removed, required to avoid
 // warnings from uses of deprecated types during trait derivations.
