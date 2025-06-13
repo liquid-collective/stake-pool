@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 
 use {
     borsh::{BorshDeserialize, BorshSerialize},
