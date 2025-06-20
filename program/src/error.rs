@@ -164,6 +164,9 @@ pub enum StakePoolError {
     /// Missing required sysvar account
     #[error("Missing required sysvar account")]
     MissingRequiredSysvar,
+    /// Epoch reward distribution is currently in progress, stakes are still being updated
+    #[error("Epoch reward distribution is currently in progress, stakes are still being updated")]
+    EpochRewardDistributionInProgress,
 }
 impl From<StakePoolError> for ProgramError {
     fn from(e: StakePoolError) -> Self {

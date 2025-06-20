@@ -28,6 +28,7 @@ use {
         clock::{Clock, Epoch},
         decode_error::DecodeError,
         entrypoint::ProgramResult,
+        epoch_rewards::EpochRewards,
         msg,
         program::{invoke, invoke_signed},
         program_error::{PrintProgramError, ProgramError},
@@ -1878,6 +1879,12 @@ impl Processor {
         )?;
         stake_pool.check_reserve_stake(reserve_stake_info)?;
         check_stake_program(stake_program_info.key)?;
+
+        // If rewards are being distributed, abort
+        let epoch_rewards = EpochRewards::get()?;
+        if epoch_rewards.active {
+            return Err(StakePoolError::EpochRewardDistributionInProgress.into());
+        }
 
         if validator_stake_accounts
             .len()
@@ -3804,6 +3811,7 @@ impl PrintProgramError for StakePoolError {
             StakePoolError::IncorrectMintDecimals => msg!("Error: Provided mint does not have 9 decimals to match SOL"),
             StakePoolError::ReserveDepleted => msg!("Error: Pool reserve does not have enough lamports to fund rent-exempt reserve in split destination. Deposit more SOL in reserve, or pre-fund split destination with the rent-exempt reserve for a stake account."),
             StakePoolError::MissingRequiredSysvar => msg!("Missing required sysvar account"),
+            StakePoolError::EpochRewardDistributionInProgress => msg!("Epoch reward distribution is currently in progress, stakes are still being updated"),
         }
     }
 }

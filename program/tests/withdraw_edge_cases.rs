@@ -114,7 +114,13 @@ async fn success_remove_validator(multiple: u64) {
         deposit_info.stake_lamports * multiple, // each pool token is worth more than one lamport
     )
     .await;
-    stake_pool_accounts
+
+    // warp forward to after reward payout
+    let first_normal_slot = context.genesis_config().epoch_schedule.first_normal_slot;
+    let mut slot = first_normal_slot + 1;
+    context.warp_to_slot(slot).unwrap();
+
+    let error = stake_pool_accounts
         .update_all(
             &mut context.banks_client,
             &context.payer,
@@ -122,6 +128,7 @@ async fn success_remove_validator(multiple: u64) {
             false,
         )
         .await;
+    assert!(error.is_none(), "{:?}", error);
 
     let rent = context.banks_client.get_rent().await.unwrap();
     let stake_rent = rent.minimum_balance(std::mem::size_of::<stake::state::StakeStateV2>());
@@ -147,8 +154,8 @@ async fn success_remove_validator(multiple: u64) {
     assert!(error.is_none(), "{:?}", error);
 
     // warp forward to deactivation
-    let first_normal_slot = context.genesis_config().epoch_schedule.first_normal_slot;
-    context.warp_to_slot(first_normal_slot + 1).unwrap();
+    slot += context.genesis_config().epoch_schedule.slots_per_epoch;
+    context.warp_to_slot(slot).unwrap();
 
     let last_blockhash = context
         .banks_client
@@ -157,7 +164,7 @@ async fn success_remove_validator(multiple: u64) {
         .unwrap();
 
     // update to merge deactivated stake into reserve
-    stake_pool_accounts
+    let error = stake_pool_accounts
         .update_all(
             &mut context.banks_client,
             &context.payer,
@@ -165,6 +172,7 @@ async fn success_remove_validator(multiple: u64) {
             false,
         )
         .await;
+    assert!(error.is_none(), "{:?}", error);
 
     let validator_stake_account =
         get_account(&mut context.banks_client, &validator_stake.stake_account).await;
