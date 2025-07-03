@@ -19,7 +19,7 @@ use {
         transport::TransportError,
     },
     spl_stake_pool::{
-        error::StakePoolError, find_transient_stake_program_address, id, instruction, state,
+        error::StakePoolError, find_transient_stake_program_address, id, instruction::{self, FundingType}, state,
         MINIMUM_RESERVE_LAMPORTS,
     },
     std::num::NonZeroU32,
@@ -429,6 +429,25 @@ async fn success_with_activating_transient_stake() {
 async fn success_with_deactivating_transient_stake() {
     let (mut context, stake_pool_accounts, validator_stake) = setup().await;
 
+    let sol_withdraw_authority = Keypair::new();
+        let transaction = Transaction::new_signed_with_payer(
+            &[instruction::set_funding_authority(
+                &id(),
+                &stake_pool_accounts.stake_pool.pubkey(),
+                &stake_pool_accounts.manager.pubkey(),
+                Some(&sol_withdraw_authority.pubkey()),
+                FundingType::SolWithdraw,
+            )],
+            Some(&context.payer.pubkey()),
+            &[&context.payer, &stake_pool_accounts.manager],
+            context.last_blockhash,
+        );
+        context
+            .banks_client
+            .process_transaction(transaction)
+            .await
+            .unwrap();
+
     let rent = context.banks_client.get_rent().await.unwrap();
     let stake_rent = rent.minimum_balance(std::mem::size_of::<stake::state::StakeStateV2>());
     let current_minimum_delegation = stake_pool_get_minimum_delegation(
@@ -514,6 +533,7 @@ async fn success_with_deactivating_transient_stake() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
