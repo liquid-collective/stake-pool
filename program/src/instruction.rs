@@ -1,5 +1,6 @@
 //! Instruction types
-
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 // Remove the following `allow` when `Redelegate` is removed, required to avoid
 // warnings from uses of deprecated types during trait derivations.
 #![allow(deprecated)]
@@ -332,6 +333,7 @@ pub enum StakePoolInstruction {
     ///  10. `[]` Sysvar clock account (required)
     ///  11. `[]` Pool token program id
     ///  12. `[]` Stake program id,
+    ///  13. `[s] `Stake pool sol withdraw authority
     ///
     ///  User data: amount of pool tokens to withdraw
     WithdrawStake(u64),
@@ -681,6 +683,7 @@ pub enum StakePoolInstruction {
     ///  10. `[]` Sysvar clock account (required)
     ///  11. `[]` Pool token program id
     ///  12. `[]` Stake program id,
+    ///  13. `[s] `Stake pool sol withdraw authority
     ///
     ///  User data: amount of pool tokens to withdraw
     WithdrawStakeWithSlippage {

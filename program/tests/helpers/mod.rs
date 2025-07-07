@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 
 use {
     borsh::BorshDeserialize,
@@ -2582,7 +2584,6 @@ pub fn add_token_account(
     );
     program_test.add_account(*account_key, fee_account);
 }
-
 pub async fn setup_for_withdraw(
     token_program_id: Pubkey,
     reserve_lamports: u64,
@@ -2609,23 +2610,23 @@ pub async fn setup_for_withdraw(
         .unwrap();
 
     let sol_withdraw_authority = Keypair::new();
-        let transaction = Transaction::new_signed_with_payer(
-            &[instruction::set_funding_authority(
-                &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
-                &stake_pool_accounts.manager.pubkey(),
-                Some(&sol_withdraw_authority.pubkey()),
-                FundingType::SolWithdraw,
-            )],
-            Some(&context.payer.pubkey()),
-            &[&context.payer, &stake_pool_accounts.manager],
-            context.last_blockhash,
-        );
-        context
-            .banks_client
-            .process_transaction(transaction)
-            .await
-            .unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction::set_funding_authority(
+            &id(),
+            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.manager.pubkey(),
+            Some(&sol_withdraw_authority.pubkey()),
+            FundingType::SolWithdraw,
+        )],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_pool_accounts.manager],
+        context.last_blockhash,
+    );
+    context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
 
     let validator_stake_account = simple_add_validator_to_pool(
         &mut context.banks_client,
@@ -2691,6 +2692,7 @@ pub async fn setup_for_withdraw(
         tokens_to_withdraw,
     )
 }
+
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DecreaseInstruction {

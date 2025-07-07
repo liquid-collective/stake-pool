@@ -8,7 +8,7 @@ export const METADATA_MAX_SYMBOL_LENGTH = 10;
 export const METADATA_MAX_URI_LENGTH = 200;
 
 // Public key that identifies the SPL Stake Pool program.
-export const STAKE_POOL_PROGRAM_ID = new PublicKey('SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy');
+export const STAKE_POOL_PROGRAM_ID = new PublicKey('FiSAMuamQakzK54tLc1yBVBiWEUoANDnGptbBdR83DES');
 
 // Public key that identifies the SPL Stake Pool program deployed to devnet.
 export const DEVNET_STAKE_POOL_PROGRAM_ID = new PublicKey(
