@@ -2043,19 +2043,19 @@ impl Processor {
             )
             .ok();
             match validator_stake_state {
-                Some(stake::state::StakeStateV2::Stake(meta, stake, _)) => {
+                Some(stake::state::StakeStateV2::Stake(meta, stake, _))
+                    if stake_is_usable_by_pool(
+                        &meta,
+                        withdraw_authority_info.key,
+                        &stake_pool.lockup,
+                    ) =>
+                {
                     let additional_lamports = validator_stake_info
                         .lamports()
                         .saturating_sub(stake.delegation.stake)
                         .saturating_sub(meta.rent_exempt_reserve);
                     // withdraw any extra lamports back to the reserve
-                    if additional_lamports > 0
-                        && stake_is_usable_by_pool(
-                            &meta,
-                            withdraw_authority_info.key,
-                            &stake_pool.lockup,
-                        )
-                    {
+                    if additional_lamports > 0 {
                         Self::stake_withdraw(
                             stake_pool_info.key,
                             validator_stake_info.clone(),
@@ -2075,12 +2075,7 @@ impl Processor {
                         StakeStatus::DeactivatingValidator | StakeStatus::DeactivatingAll => {
                             if no_merge {
                                 active_stake_lamports = validator_stake_info.lamports();
-                            } else if stake_is_usable_by_pool(
-                                &meta,
-                                withdraw_authority_info.key,
-                                &stake_pool.lockup,
-                            ) && stake_is_inactive_without_history(&stake, clock.epoch)
-                            {
+                            } else if stake_is_inactive_without_history(&stake, clock.epoch) {
                                 // Validator was removed through normal means.
                                 // Absorb the lamports into the reserve.
                                 Self::stake_merge(
@@ -2124,9 +2119,14 @@ impl Processor {
                         clock_info.clone(),
                         stake_history_info.clone(),
                     )?;
-                    validator_stake_record.status.remove_validator_stake()?;
+                    if transient_stake_lamports != 0 {
+                        validator_stake_record.status = StakeStatus::DeactivatingTransient.into();
+                    } else {
+                        validator_stake_record.status = StakeStatus::ReadyForRemoval.into();
+                    }
                 }
-                Some(stake::state::StakeStateV2::Initialized(_))
+                Some(stake::state::StakeStateV2::Stake(_, _, _))
+                | Some(stake::state::StakeStateV2::Initialized(_))
                 | Some(stake::state::StakeStateV2::Uninitialized)
                 | Some(stake::state::StakeStateV2::RewardsPool)
                 | None => {
