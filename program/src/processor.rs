@@ -2291,7 +2291,7 @@ impl Processor {
             return Err(StakePoolError::InvalidState.into());
         }
 
-        validator_list.retain::<ValidatorStakeInfo, _>(ValidatorStakeInfo::is_not_removed)?;
+        validator_list.retain::<ValidatorStakeInfo, _>(|x| !ValidatorStakeInfo::is_removed(x))?;
 
         Ok(())
     }
