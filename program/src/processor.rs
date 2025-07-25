@@ -1286,6 +1286,11 @@ impl Processor {
             )?;
         }
 
+        if validator_stake_info.status != StakeStatus::Active.into() {
+            msg!("Validator is marked for removal and no longer allows decreases");
+            return Err(StakePoolError::ValidatorNotFound.into());
+        }
+
         let stake_space = std::mem::size_of::<stake::state::StakeStateV2>();
         let stake_rent = rent.minimum_balance(stake_space);
 
