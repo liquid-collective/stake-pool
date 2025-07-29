@@ -1954,96 +1954,45 @@ impl Processor {
             //  * deactivating -> nothing, just account its lamports
             //  * inactive -> merge into reserve stake
             //  * not a stake -> ignore
-            match transient_stake_state {
-                Some(stake::state::StakeStateV2::Initialized(meta)) => {
-                    if stake_is_usable_by_pool(
-                        &meta,
-                        withdraw_authority_info.key,
-                        &stake_pool.lockup,
-                    ) {
-                        if no_merge {
-                            transient_stake_lamports = transient_stake_info.lamports();
-                        } else {
-                            // merge into reserve
-                            Self::stake_merge(
-                                stake_pool_info.key,
-                                transient_stake_info.clone(),
-                                withdraw_authority_info.clone(),
-                                AUTHORITY_WITHDRAW,
-                                stake_pool.stake_withdraw_bump_seed,
-                                reserve_stake_info.clone(),
-                                clock_info.clone(),
-                                stake_history_info.clone(),
-                            )?;
-                            validator_stake_record.status.remove_transient_stake()?;
+            if validator_stake_record.transient_stake_lamports != 0.into() {
+                match transient_stake_state {
+                    Some(stake::state::StakeStateV2::Initialized(meta)) => {
+                        if stake_is_usable_by_pool(
+                            &meta,
+                            withdraw_authority_info.key,
+                            &stake_pool.lockup,
+                        ) {
+                            if no_merge {
+                                transient_stake_lamports = transient_stake_info.lamports();
+                            } else {
+                                // merge into reserve
+                                Self::stake_merge(
+                                    stake_pool_info.key,
+                                    transient_stake_info.clone(),
+                                    withdraw_authority_info.clone(),
+                                    AUTHORITY_WITHDRAW,
+                                    stake_pool.stake_withdraw_bump_seed,
+                                    reserve_stake_info.clone(),
+                                    clock_info.clone(),
+                                    stake_history_info.clone(),
+                                )?;
+                                validator_stake_record.status.remove_transient_stake()?;
+                            }
                         }
                     }
-                }
-                Some(stake::state::StakeStateV2::Stake(meta, stake, _)) => {
-                    if stake_is_usable_by_pool(
-                        &meta,
-                        withdraw_authority_info.key,
-                        &stake_pool.lockup,
-                    ) && stake.delegation.voter_pubkey
-                        == validator_stake_record.vote_account_address
-                    {
-                        match validator_stake_record.status.try_into()? {
-                            StakeStatus::Active => {
-                                if no_merge {
-                                    transient_stake_lamports = transient_stake_info.lamports();
-                                } else if stake_is_inactive_without_history(&stake, clock.epoch) {
-                                    // deactivated, merge into reserve
-                                    Self::stake_merge(
-                                        stake_pool_info.key,
-                                        transient_stake_info.clone(),
-                                        withdraw_authority_info.clone(),
-                                        AUTHORITY_WITHDRAW,
-                                        stake_pool.stake_withdraw_bump_seed,
-                                        reserve_stake_info.clone(),
-                                        clock_info.clone(),
-                                        stake_history_info.clone(),
-                                    )?;
-                                    validator_stake_record.status.remove_transient_stake()?;
-                                } else if stake.delegation.activation_epoch < clock.epoch {
-                                    if let Some(stake::state::StakeStateV2::Stake(
-                                        _,
-                                        validator_stake,
-                                        _,
-                                    )) = validator_stake_state
-                                    {
-                                        if validator_stake.delegation.activation_epoch < clock.epoch
-                                        {
-                                            Self::stake_merge(
-                                                stake_pool_info.key,
-                                                transient_stake_info.clone(),
-                                                withdraw_authority_info.clone(),
-                                                AUTHORITY_WITHDRAW,
-                                                stake_pool.stake_withdraw_bump_seed,
-                                                validator_stake_info.clone(),
-                                                clock_info.clone(),
-                                                stake_history_info.clone(),
-                                            )?;
-                                        } else {
-                                            msg!("Stake activating or just active, not ready to merge");
-                                            transient_stake_lamports =
-                                                transient_stake_info.lamports();
-                                        }
-                                    } else {
-                                        msg!("Transient stake is activating or active, but validator stake is not, need to add the validator stake account on {} back into the stake pool", stake.delegation.voter_pubkey);
-                                        transient_stake_lamports = transient_stake_info.lamports();
-                                    }
-                                } else {
-                                    msg!("Transient stake not ready to be merged anywhere");
-                                    transient_stake_lamports = transient_stake_info.lamports();
-                                }
-                            }
-                            StakeStatus::DeactivatingAll | StakeStatus::DeactivatingTransient => {
-                                // check if stake is deactivating or inactive
-                                if stake.delegation.deactivation_epoch != Epoch::MAX {
+                    Some(stake::state::StakeStateV2::Stake(meta, stake, _)) => {
+                        if stake_is_usable_by_pool(
+                            &meta,
+                            withdraw_authority_info.key,
+                            &stake_pool.lockup,
+                        ) && stake.delegation.voter_pubkey
+                            == validator_stake_record.vote_account_address
+                        {
+                            match validator_stake_record.status.try_into()? {
+                                StakeStatus::Active => {
                                     if no_merge {
                                         transient_stake_lamports = transient_stake_info.lamports();
-                                    } else if stake_is_inactive_without_history(&stake, clock.epoch)
-                                    {
+                                    } else if stake_is_inactive_without_history(&stake, clock.epoch) {
                                         // deactivated, merge into reserve
                                         Self::stake_merge(
                                             stake_pool_info.key,
@@ -2056,25 +2005,88 @@ impl Processor {
                                             stake_history_info.clone(),
                                         )?;
                                         validator_stake_record.status.remove_transient_stake()?;
+                                    } else if stake.delegation.activation_epoch < clock.epoch {
+                                        if let Some(stake::state::StakeStateV2::Stake(
+                                            _,
+                                            validator_stake,
+                                            _,
+                                        )) = validator_stake_state
+                                        {
+                                            if validator_stake.delegation.activation_epoch < clock.epoch
+                                            {
+                                                Self::stake_merge(
+                                                    stake_pool_info.key,
+                                                    transient_stake_info.clone(),
+                                                    withdraw_authority_info.clone(),
+                                                    AUTHORITY_WITHDRAW,
+                                                    stake_pool.stake_withdraw_bump_seed,
+                                                    validator_stake_info.clone(),
+                                                    clock_info.clone(),
+                                                    stake_history_info.clone(),
+                                                )?;
+                                            } else {
+                                                msg!("Stake activating or just active, not ready to merge");
+                                                transient_stake_lamports =
+                                                    transient_stake_info.lamports();
+                                            }
+                                        } else {
+                                            msg!("Transient stake is activating or active, but validator stake is not, need to add the validator stake account on {} back into the stake pool", stake.delegation.voter_pubkey);
+                                            transient_stake_lamports = transient_stake_info.lamports();
+                                        }
                                     } else {
                                         msg!("Transient stake not ready to be merged anywhere");
                                         transient_stake_lamports = transient_stake_info.lamports();
                                     }
-                                } else {
-                                    msg!("Transient stake is activating or active, but the validator is being removed, which should not happen. Ignoring.");
                                 }
-                            }
-                            StakeStatus::DeactivatingValidator | StakeStatus::ReadyForRemoval => {
-                                msg!("Validator should not have a transient stake, ignoring. Someone may have hijacked a previous transient stake account.");
+                                StakeStatus::DeactivatingAll | StakeStatus::DeactivatingTransient |StakeStatus::DeactivatingValidator | StakeStatus::ReadyForRemoval => {
+                                    // check if stake is deactivating or inactive
+                                    if stake.delegation.deactivation_epoch != Epoch::MAX {
+                                        if no_merge {
+                                            transient_stake_lamports = transient_stake_info.lamports();
+                                        } else if stake_is_inactive_without_history(&stake, clock.epoch)
+                                        {
+                                            // deactivated, merge into reserve
+                                            Self::stake_merge(
+                                                stake_pool_info.key,
+                                                transient_stake_info.clone(),
+                                                withdraw_authority_info.clone(),
+                                                AUTHORITY_WITHDRAW,
+                                                stake_pool.stake_withdraw_bump_seed,
+                                                reserve_stake_info.clone(),
+                                                clock_info.clone(),
+                                                stake_history_info.clone(),
+                                            )?;
+                                            validator_stake_record.status.remove_transient_stake()?;
+                                        } else {
+                                            msg!("Transient stake not ready to be merged anywhere");
+                                            transient_stake_lamports = transient_stake_info.lamports();
+                                        }
+                                    } else {
+
+                                        if no_merge{
+                                            msg!("Transient stake is activating or active, accounting for it.");
+                                        } else{
+                                            msg!("Transient stake is activating or active, deactivating.");
+                                            Self::stake_deactivate(
+                                                transient_stake_info.clone(),
+                                                clock_info.clone(),
+                                                withdraw_authority_info.clone(),
+                                                stake_pool_info.key,
+                                                AUTHORITY_WITHDRAW,
+                                                stake_pool.stake_withdraw_bump_seed,
+                                            )?;
+                                        }
+                                        transient_stake_lamports = transient_stake_info.lamports();
+                                    }
+                                }
                             }
                         }
                     }
+                    None
+                    | Some(stake::state::StakeStateV2::Uninitialized)
+                    | Some(stake::state::StakeStateV2::RewardsPool) => {} // do nothing
                 }
-                None
-                | Some(stake::state::StakeStateV2::Uninitialized)
-                | Some(stake::state::StakeStateV2::RewardsPool) => {} // do nothing
-            }
-
+            }   
             // Status for validator stake
             //  * active -> do everything
             //  * any other state / not a stake -> error state, but account for transient
