@@ -1985,9 +1985,7 @@ impl Processor {
                             &meta,
                             withdraw_authority_info.key,
                             &stake_pool.lockup,
-                        ) && stake.delegation.voter_pubkey
-                            == validator_stake_record.vote_account_address
-                        {
+                        ) {
                             match validator_stake_record.status.try_into()? {
                                 StakeStatus::Active => {
                                     if no_merge {
@@ -2086,7 +2084,7 @@ impl Processor {
                     | Some(stake::state::StakeStateV2::Uninitialized)
                     | Some(stake::state::StakeStateV2::RewardsPool) => {} // do nothing
                 }
-            }   
+            }
             // Status for validator stake
             //  * active -> do everything
             //  * any other state / not a stake -> error state, but account for transient
