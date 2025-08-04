@@ -2911,16 +2911,24 @@ impl Processor {
             if let Some(preferred_withdraw_validator) =
                 stake_pool.preferred_withdraw_validator_vote_address
             {
-                let preferred_validator_info = validator_list
+                // Defensive check, in case the preferred validator was somehow
+                // removed.
+                if let Some(preferred_validator_info) = validator_list
                     .find::<ValidatorStakeInfo, _>(|x| {
                         ValidatorStakeInfo::memcmp_pubkey(x, &preferred_withdraw_validator)
                     })
-                    .ok_or(StakePoolError::ValidatorNotFound)?;
-                let available_lamports = u64::from(preferred_validator_info.active_stake_lamports)
-                    .saturating_sub(minimum_lamports_with_tolerance);
-                if preferred_withdraw_validator != vote_account_address && available_lamports > 0 {
-                    msg!("Validator vote address {} is preferred for withdrawals, it currently has {} lamports available. Please withdraw those before using other validator stake accounts.", preferred_withdraw_validator, u64::from(preferred_validator_info.active_stake_lamports));
-                    return Err(StakePoolError::IncorrectWithdrawVoteAddress.into());
+                {
+                    let available_lamports =
+                        u64::from(preferred_validator_info.active_stake_lamports)
+                            .saturating_sub(minimum_lamports_with_tolerance);
+                    if preferred_withdraw_validator != vote_account_address
+                        && available_lamports > 0
+                    {
+                        msg!("Validator vote address {} is preferred for withdrawals, it currently has {} lamports available. Please withdraw those before using other validator stake accounts.", preferred_withdraw_validator, u64::from(preferred_validator_info.active_stake_lamports));
+                        return Err(StakePoolError::IncorrectWithdrawVoteAddress.into());
+                    }
+                } else {
+                    msg!("Preferred withdraw validator not found, allowing withdrawal from any validator");
                 }
             }
 
@@ -2998,6 +3006,18 @@ impl Processor {
                     }
                     // truncate the lamports down to the amount in the account
                     withdraw_lamports = split_from_lamports;
+
+                    // reset the preferred validator if needed
+                    if stake_pool.preferred_deposit_validator_vote_address
+                        == Some(vote_account_address)
+                    {
+                        stake_pool.preferred_deposit_validator_vote_address = None;
+                    }
+                    if stake_pool.preferred_withdraw_validator_vote_address
+                        == Some(vote_account_address)
+                    {
+                        stake_pool.preferred_withdraw_validator_vote_address = None;
+                    }
                 }
             }
             Some((validator_stake_info, withdraw_source))
