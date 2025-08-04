@@ -2941,8 +2941,12 @@ impl Processor {
                     NonZeroU32::new(validator_stake_info.validator_seed_suffix.into()),
                 )?;
                 StakeWithdrawSource::Active
-            } else if has_transient_stake {
+            } else if has_transient_stake
+                || validator_stake_info.transient_stake_lamports != 0.into()
+            {
                 // if there's any transient stake, we must withdraw from there
+                // Be particularly cautious to avoid removing a validator with
+                // transient lamports tied to it
                 check_transient_stake_address(
                     program_id,
                     stake_pool_info.key,
