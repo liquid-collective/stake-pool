@@ -2362,6 +2362,68 @@ impl Processor {
 
         validator_list.retain::<ValidatorStakeInfo, _>(|x| !ValidatorStakeInfo::is_removed(x))?;
 
+        if stake_pool_info.is_writable {
+            msg!("Checking preferred validators");
+            let mut stake_pool =
+                try_from_slice_unchecked::<StakePool>(&stake_pool_info.data.borrow())?;
+
+            // Check and reset preferred validators if they don't exist or aren't active
+            // Check preferred deposit validator
+            if let Some(preferred_deposit) = stake_pool.preferred_deposit_validator_vote_address {
+                let maybe_validator = validator_list.find::<ValidatorStakeInfo, _>(|x| {
+                    ValidatorStakeInfo::memcmp_pubkey(x, &preferred_deposit)
+                });
+
+                let should_reset = match maybe_validator {
+                    Some(validator) => {
+                        // Check if validator status is not Active
+                        match validator.status.try_into() {
+                            Ok(StakeStatus::Active) => false, // Valid, keep it
+                            _ => true,                        // Not active, reset it
+                        }
+                    }
+                    None => true, // Not found in list, reset it
+                };
+
+                if should_reset {
+                    msg!(
+                        "Preferred deposit validator {} not found or not active, resetting",
+                        preferred_deposit
+                    );
+                    stake_pool.preferred_deposit_validator_vote_address = None;
+                }
+            }
+
+            // Check preferred withdrawal validator
+            if let Some(preferred_withdraw) = stake_pool.preferred_withdraw_validator_vote_address {
+                let maybe_validator = validator_list.find::<ValidatorStakeInfo, _>(|x| {
+                    ValidatorStakeInfo::memcmp_pubkey(x, &preferred_withdraw)
+                });
+
+                let should_reset = match maybe_validator {
+                    Some(validator) => {
+                        // Check if validator status is not Active
+                        match validator.status.try_into() {
+                            Ok(StakeStatus::Active) => false, // Valid, keep it
+                            _ => true,                        // Not active, reset it
+                        }
+                    }
+                    None => true, // Not found in list, reset it
+                };
+
+                if should_reset {
+                    msg!(
+                        "Preferred withdrawal validator {} not found or not active, resetting",
+                        preferred_withdraw
+                    );
+                    stake_pool.preferred_withdraw_validator_vote_address = None;
+                }
+            }
+
+            // Save the updated stake pool state
+            borsh::to_writer(&mut stake_pool_info.data.borrow_mut()[..], &stake_pool)?;
+        }
+
         Ok(())
     }
 
