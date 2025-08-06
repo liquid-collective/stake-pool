@@ -2039,18 +2039,16 @@ impl Processor {
                                     } else {
                                         msg!("Transient stake not ready to be merged anywhere");
                                     }
-                                } else {
-                                    if stake.delegation.deactivation_epoch == Epoch::MAX {
-                                        msg!("Transient stake is activating or active, deactivating.");
-                                        Self::stake_deactivate(
-                                            transient_stake_info.clone(),
-                                            clock_info.clone(),
-                                            withdraw_authority_info.clone(),
-                                            stake_pool_info.key,
-                                            AUTHORITY_WITHDRAW,
-                                            stake_pool.stake_withdraw_bump_seed,
-                                        )?;
-                                    }
+                                } else if stake.delegation.deactivation_epoch == Epoch::MAX {
+                                    msg!("Transient stake is activating or active, deactivating.");
+                                    Self::stake_deactivate(
+                                        transient_stake_info.clone(),
+                                        clock_info.clone(),
+                                        withdraw_authority_info.clone(),
+                                        stake_pool_info.key,
+                                        AUTHORITY_WITHDRAW,
+                                        stake_pool.stake_withdraw_bump_seed,
+                                    )?;
                                 }
                             }
                             transient_stake_lamports = transient_stake_info.lamports();
