@@ -771,7 +771,7 @@ async fn fail_with_no_merge_during_reward_payout() {
         error,
         TransactionError::InstructionError(
             0,
-            InstructionError::Custom(StakePoolError::EpochRewardDistibutionInProgress as u32)
+            InstructionError::Custom(StakePoolError::EpochRewardDistributionInProgress as u32)
         )
     );
 }
