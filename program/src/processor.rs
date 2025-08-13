@@ -1143,10 +1143,10 @@ impl Processor {
                             stake_pool.stake_withdraw_bump_seed,
                         )?;
                     }
-                    StakeStatus::DeactivatingAll
                 }
-                _ => StakeStatus::DeactivatingValidator,
+                _ => (),
             }
+            StakeStatus::DeactivatingAll
         } else {
             StakeStatus::DeactivatingValidator
         };
