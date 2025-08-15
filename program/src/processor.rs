@@ -2902,7 +2902,7 @@ impl Processor {
                 ValidatorStakeInfo::active_lamports_greater_than(
                     x,
                     &minimum_lamports_with_tolerance,
-                )
+                ) && ValidatorStakeInfo::is_active(x)
             })
             .is_some();
         let has_transient_stake = validator_list
@@ -2910,7 +2910,7 @@ impl Processor {
                 ValidatorStakeInfo::transient_lamports_greater_than(
                     x,
                     &minimum_lamports_with_tolerance,
-                )
+                ) && ValidatorStakeInfo::is_active(x)
             })
             .is_some();
 

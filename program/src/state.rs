@@ -759,6 +759,11 @@ impl ValidatorStakeInfo {
         FromPrimitive::from_u8(data[40]) == Some(StakeStatus::ReadyForRemoval)
             && data[0..16] == [0; 16] // active and transient stake lamports are 0
     }
+
+    /// Check that the validator stake info is active
+    pub fn is_active(data: &[u8]) -> bool {
+        FromPrimitive::from_u8(data[40]) == Some(StakeStatus::Active)
+    }
 }
 
 impl Sealed for ValidatorStakeInfo {}
