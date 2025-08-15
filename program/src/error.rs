@@ -167,6 +167,9 @@ pub enum StakePoolError {
     /// Epoch reward distribution is currently in progress, stakes are still being updated
     #[error("Epoch reward distribution is currently in progress, stakes are still being updated")]
     EpochRewardDistributionInProgress,
+    /// The stake pool has too many validators in the pool
+    #[error("The stake pool has too many validators in the pool")]
+    TooManyValidatorsInPool,
 }
 impl From<StakePoolError> for ProgramError {
     fn from(e: StakePoolError) -> Self {

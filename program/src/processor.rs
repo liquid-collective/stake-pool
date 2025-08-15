@@ -17,7 +17,7 @@ use {
             StakeStatus, StakeWithdrawSource, ValidatorList, ValidatorListHeader,
             ValidatorStakeInfo,
         },
-        AUTHORITY_DEPOSIT, AUTHORITY_WITHDRAW, EPHEMERAL_STAKE_SEED_PREFIX,
+        AUTHORITY_DEPOSIT, AUTHORITY_WITHDRAW, EPHEMERAL_STAKE_SEED_PREFIX, MAX_VALIDATORS_IN_POOL,
         TRANSIENT_STAKE_SEED_PREFIX,
     },
     borsh::BorshDeserialize,
@@ -709,6 +709,9 @@ impl Processor {
             );
             return Err(StakePoolError::UnexpectedValidatorListAccountSize.into());
         }
+        if max_validators > MAX_VALIDATORS_IN_POOL {
+            return Err(StakePoolError::TooManyValidatorsInPool.into());
+        }
         validator_list.header.account_type = AccountType::ValidatorList;
         validator_list.header.max_validators = max_validators;
         validator_list.validators.clear();
@@ -946,6 +949,9 @@ impl Processor {
         }
         if header.max_validators == validator_list.len() {
             return Err(ProgramError::AccountDataTooSmall);
+        }
+        if validator_list.len() >= MAX_VALIDATORS_IN_POOL {
+            return Err(StakePoolError::TooManyValidatorsInPool.into());
         }
         let maybe_validator_stake_info = validator_list.find::<ValidatorStakeInfo, _>(|x| {
             ValidatorStakeInfo::memcmp_pubkey(x, validator_vote_info.key)
@@ -3830,6 +3836,7 @@ impl PrintProgramError for StakePoolError {
             StakePoolError::ReserveDepleted => msg!("Error: Pool reserve does not have enough lamports to fund rent-exempt reserve in split destination. Deposit more SOL in reserve, or pre-fund split destination with the rent-exempt reserve for a stake account."),
             StakePoolError::MissingRequiredSysvar => msg!("Missing required sysvar account"),
             StakePoolError::EpochRewardDistributionInProgress => msg!("Epoch reward distribution is currently in progress, stakes are still being updated"),
+            StakePoolError::TooManyValidatorsInPool => msg!("The stake pool has too many validators in the pool"),
         }
     }
 }
