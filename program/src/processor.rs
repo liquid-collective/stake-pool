@@ -2927,11 +2927,19 @@ impl Processor {
                 return Err(StakePoolError::StakeLamportsNotEqualToMinimum.into());
             }
 
-            // check that reserve has enough (should never fail, but who knows?)
-            stake_split_from
+            // check that reserve has enough
+            let minimum_reserve_lamports = minimum_reserve_lamports(&meta);
+            if stake_split_from
                 .lamports()
-                .checked_sub(minimum_reserve_lamports(&meta))
-                .ok_or(StakePoolError::StakeLamportsNotEqualToMinimum)?;
+                .saturating_sub(withdraw_lamports)
+                < minimum_reserve_lamports
+            {
+                msg!("Attempting to withdraw {} lamports, maximum possible SOL withdrawal is {} lamports",
+                    withdraw_lamports,
+                    stake_split_from.lamports().saturating_sub(minimum_reserve_lamports)
+                );
+                return Err(StakePoolError::SolWithdrawalTooLarge.into());
+            }
             None
         } else {
             let delegation = stake_state
