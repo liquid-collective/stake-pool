@@ -29,7 +29,7 @@ fn process_instruction(
 security_txt! {
     // Required fields
     name: "SPL Stake Pool",
-    project_url: "https://lssol.xyz",
+    project_url: "https://liquidcollective.io/liquid-staked-sol/",
     contacts: "mailto:security@liquidcollective.io",
     policy: "https://github.com/liquid-collective/security/blob/main/VULNERABILITY_DISCLOSURE.md ",
 
@@ -37,6 +37,6 @@ security_txt! {
     preferred_languages: "en",
     source_code: "https://github.com/liquid-collective/stake-pool/tree/liquid_collective_release",
     source_revision: "", // fill in after v1.0.0 bump lands
-    source_release: "stake-pool-v1.0.0",
+    source_release: "stake-pool-v2.0.3",
     auditors: "https://certificate.quantstamp.com/full/liquid-collective-solana/cbb18ece-3a03-4897-a040-f197fc641e4d/index.html"
 }
