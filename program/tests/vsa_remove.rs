@@ -1,5 +1,7 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![cfg(feature = "test-sbf")]
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 
 mod helpers;
 
@@ -21,7 +23,7 @@ use {
     solana_stake_interface as stake,
     solana_system_interface::instruction as system_instruction,
     spl_stake_pool::{
-        error::StakePoolError, find_transient_stake_program_address, id, instruction, state,
+        error::StakePoolError, find_transient_stake_program_address, id, instruction::{self, FundingType}, state,
         MINIMUM_RESERVE_LAMPORTS,
     },
     std::num::NonZeroU32,
@@ -29,6 +31,10 @@ use {
 
 async fn setup() -> (ProgramTestContext, StakePoolAccounts, ValidatorStakeAccount) {
     let mut context = program_test().start_with_context().await;
+    let first_normal_slot = context.genesis_config().epoch_schedule.first_normal_slot;
+    let slot = first_normal_slot + 1;
+    context.warp_to_slot(slot).unwrap();
+
     let stake_pool_accounts = StakePoolAccounts::default();
     stake_pool_accounts
         .initialize_stake_pool(
@@ -431,6 +437,25 @@ async fn success_with_activating_transient_stake() {
 async fn success_with_deactivating_transient_stake() {
     let (mut context, stake_pool_accounts, validator_stake) = setup().await;
 
+    let sol_withdraw_authority = Keypair::new();
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction::set_funding_authority(
+            &id(),
+            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.manager.pubkey(),
+            Some(&sol_withdraw_authority.pubkey()),
+            FundingType::SolWithdraw,
+        )],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_pool_accounts.manager],
+        context.last_blockhash,
+    );
+    context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
     let rent = context.banks_client.get_rent().await.unwrap();
     let stake_rent = rent.minimum_balance(std::mem::size_of::<stake::state::StakeStateV2>());
     let current_minimum_delegation = stake_pool_get_minimum_delegation(
@@ -516,6 +541,7 @@ async fn success_with_deactivating_transient_stake() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
+            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -542,7 +568,7 @@ async fn success_with_deactivating_transient_stake() {
         validators: vec![state::ValidatorStakeInfo {
             status: state::StakeStatus::DeactivatingAll.into(),
             vote_account_address: validator_stake.vote.pubkey(),
-            last_update_epoch: 0.into(),
+            last_update_epoch: 14.into(), // first normal epoch
             active_stake_lamports: (stake_rent + current_minimum_delegation).into(),
             transient_stake_lamports: (TEST_STAKE_AMOUNT + stake_rent * 2).into(),
             transient_seed_suffix: validator_stake.transient_stake_seed.into(),
@@ -945,4 +971,93 @@ async fn update_no_merge_after_removal() {
         }],
     };
     assert_eq!(validator_list, expected_list);
+}
+
+#[tokio::test]
+async fn success_remove_validator_with_transient_stake_triggers_deactivating_all() {
+    let (mut context, stake_pool_accounts, validator_stake) = setup().await;
+
+    // First, increase validator stake to create a transient stake account
+    let increase_amount = TEST_STAKE_AMOUNT;
+    let error = stake_pool_accounts
+        .increase_validator_stake(
+            &mut context.banks_client,
+            &context.payer,
+            &context.last_blockhash,
+            &validator_stake.transient_stake_account,
+            &validator_stake.stake_account,
+            &validator_stake.vote.pubkey(),
+            increase_amount,
+            validator_stake.transient_stake_seed,
+        )
+        .await;
+    assert!(error.is_none(), "{:?}", error);
+
+    // Update the validator list to register the transient stake
+    let error = stake_pool_accounts
+        .update_validator_list_balance(
+            &mut context.banks_client,
+            &context.payer,
+            &context.last_blockhash,
+            1,
+            true, // no_merge = true to keep transient stake separate
+        )
+        .await;
+    assert!(error.is_none(), "{:?}", error);
+
+    // Verify the validator has both active and transient stake
+    let validator_list_before = stake_pool_accounts
+        .get_validator_list(&mut context.banks_client)
+        .await;
+    let validator_info_before = &validator_list_before.validators[0];
+    assert!(u64::from(validator_info_before.active_stake_lamports) > 0);
+    assert!(u64::from(validator_info_before.transient_stake_lamports) > 0);
+    let status_before: state::StakeStatus = validator_info_before.status.try_into().unwrap();
+    assert_eq!(status_before, state::StakeStatus::Active);
+
+    // Now remove the validator - this should trigger DeactivatingAll status
+    // because the validator has transient_stake_lamports > 0
+    let error = stake_pool_accounts
+        .remove_validator_from_pool(
+            &mut context.banks_client,
+            &context.payer,
+            &context.last_blockhash,
+            &validator_stake.stake_account,
+            &validator_stake.transient_stake_account,
+        )
+        .await;
+    assert!(error.is_none(), "{:?}", error);
+
+    // Verify the validator status is now DeactivatingAll
+    let validator_list_after = stake_pool_accounts
+        .get_validator_list(&mut context.banks_client)
+        .await;
+    let validator_info_after = &validator_list_after.validators[0];
+    let status: state::StakeStatus = validator_info_after.status.try_into().unwrap();
+    assert_eq!(
+        status,
+        state::StakeStatus::DeactivatingAll,
+        "Validator with transient stake should be marked as DeactivatingAll"
+    );
+
+    // Verify both active and transient stake accounts are being deactivated
+    let active_stake_account = get_account(&mut context.banks_client, &validator_stake.stake_account).await;
+    let active_stake_state = deserialize::<stake::state::StakeStateV2>(&active_stake_account.data).unwrap();
+    if let stake::state::StakeStateV2::Stake(_, active_stake, _) = active_stake_state {
+        assert_ne!(
+            active_stake.delegation.deactivation_epoch,
+            u64::MAX,
+            "Active stake should be deactivating"
+        );
+    }
+
+    let transient_stake_account = get_account(&mut context.banks_client, &validator_stake.transient_stake_account).await;
+    let transient_stake_state = deserialize::<stake::state::StakeStateV2>(&transient_stake_account.data).unwrap();
+    if let stake::state::StakeStateV2::Stake(_, transient_stake, _) = transient_stake_state {
+        assert_ne!(
+            transient_stake.delegation.deactivation_epoch,
+            u64::MAX,
+            "Transient stake should be deactivating"
+        );
+    }
 }

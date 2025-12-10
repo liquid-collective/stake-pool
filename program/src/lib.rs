@@ -1,6 +1,8 @@
 #![deny(missing_docs)]
 
 //! A program for creating and managing pools of stake
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 
 pub mod big_vec;
 pub mod error;
@@ -60,6 +62,10 @@ pub const WITHDRAWAL_BASELINE_FEE: Fee = Fee {
 /// The maximum number of transient stake accounts respecting
 /// transaction account limits.
 pub const MAX_TRANSIENT_STAKE_ACCOUNTS: usize = 10;
+
+/// The maximum number of validators that can be supported in a pool in order
+/// for stake withdrawals to still work
+pub const MAX_VALIDATORS_IN_POOL: u32 = 20_000;
 
 /// Get the stake amount under consideration when calculating pool token
 /// conversions
@@ -157,10 +163,10 @@ pub fn find_ephemeral_stake_program_address(
     )
 }
 
-solana_program::declare_id!("SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy");
+solana_program::declare_id!("LssoLRJHLA3T8Szwd84X3VT2pZYtGuiTEsvvwAKc6Ho");
 /// Program id for devnet
 pub mod devnet {
-    solana_program::declare_id!("DPoo15wWDqpPJJtS2MUZ49aRxqz5ZaaJCJP4z8bLuib");
+    solana_program::declare_id!("AHoLv7BSYnA3pZg4EBFR33gNhHC5cDtA18qdC3exAPtw");
 }
 
 #[cfg(test)]

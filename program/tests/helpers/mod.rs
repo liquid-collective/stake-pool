@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 
 use {
     borsh::BorshDeserialize,
@@ -30,7 +32,7 @@ use {
         find_stake_program_address, find_transient_stake_program_address,
         find_withdraw_authority_program_address, id,
         inline_mpl_token_metadata::{self, pda::find_metadata_account},
-        instruction, minimum_delegation,
+        instruction::{self, FundingType}, minimum_delegation,
         processor::Processor,
         state::{self, FeeType, FutureEpoch, StakePool, ValidatorList},
         MAX_VALIDATORS_TO_UPDATE, MINIMUM_RESERVE_LAMPORTS,
@@ -1221,6 +1223,7 @@ impl StakePoolAccounts {
         banks_client: &mut BanksClient,
         payer: &Keypair,
         recent_blockhash: &Hash,
+        sol_withdraw_authority: &Keypair,
         stake_recipient: &Pubkey,
         user_transfer_authority: &Keypair,
         pool_account: &Pubkey,
@@ -1232,6 +1235,7 @@ impl StakePoolAccounts {
         let mut instructions = vec![instruction::withdraw_stake_with_slippage(
             &id(),
             &self.stake_pool.pubkey(),
+            &sol_withdraw_authority.pubkey(),
             &self.validator_list.pubkey(),
             &self.withdraw_authority,
             validator_stake_account,
@@ -1249,7 +1253,7 @@ impl StakePoolAccounts {
         let transaction = Transaction::new_signed_with_payer(
             &instructions,
             Some(&payer.pubkey()),
-            &[payer, user_transfer_authority],
+            &[payer, user_transfer_authority, sol_withdraw_authority],
             *recent_blockhash,
         );
         banks_client
@@ -1265,6 +1269,7 @@ impl StakePoolAccounts {
         banks_client: &mut BanksClient,
         payer: &Keypair,
         recent_blockhash: &Hash,
+        sol_withdraw_authority: &Keypair,
         stake_recipient: &Pubkey,
         user_transfer_authority: &Keypair,
         pool_account: &Pubkey,
@@ -1275,6 +1280,7 @@ impl StakePoolAccounts {
         let mut instructions = vec![instruction::withdraw_stake(
             &id(),
             &self.stake_pool.pubkey(),
+            &sol_withdraw_authority.pubkey(),
             &self.validator_list.pubkey(),
             &self.withdraw_authority,
             validator_stake_account,
@@ -1291,7 +1297,7 @@ impl StakePoolAccounts {
         let transaction = Transaction::new_signed_with_payer(
             &instructions,
             Some(&payer.pubkey()),
-            &[payer, user_transfer_authority],
+            &[payer, user_transfer_authority, sol_withdraw_authority],
             *recent_blockhash,
         );
         banks_client
@@ -2590,6 +2596,7 @@ pub async fn setup_for_withdraw(
     DepositStakeAccount,
     Keypair,
     Keypair,
+    Keypair,
     u64,
 ) {
     let mut context = program_test().start_with_context().await;
@@ -2601,6 +2608,25 @@ pub async fn setup_for_withdraw(
             &context.last_blockhash,
             reserve_lamports,
         )
+        .await
+        .unwrap();
+
+    let sol_withdraw_authority = Keypair::new();
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction::set_funding_authority(
+            &id(),
+            &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.manager.pubkey(),
+            Some(&sol_withdraw_authority.pubkey()),
+            FundingType::SolWithdraw,
+        )],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_pool_accounts.manager],
+        context.last_blockhash,
+    );
+    context
+        .banks_client
+        .process_transaction(transaction)
         .await
         .unwrap();
 
@@ -2664,6 +2690,7 @@ pub async fn setup_for_withdraw(
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
+        sol_withdraw_authority,
         tokens_to_withdraw,
     )
 }

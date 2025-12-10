@@ -1,6 +1,8 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![allow(clippy::items_after_test_module)]
 #![cfg(feature = "test-sbf")]
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
+// Changes: Permissioning the stake-pool and allowing freezable tokens
 
 mod helpers;
 
@@ -23,7 +25,9 @@ use {
     },
     solana_stake_interface as stake,
     solana_system_interface::instruction as system_instruction,
-    spl_stake_pool::{error, id, instruction, state, MINIMUM_RESERVE_LAMPORTS},
+    spl_stake_pool::{
+        error, id, instruction, state, MAX_VALIDATORS_IN_POOL, MINIMUM_RESERVE_LAMPORTS,
+    },
     spl_token_2022::extension::ExtensionType,
     test_case::test_case,
 };
@@ -418,7 +422,7 @@ async fn fail_with_wrong_mint_authority() {
 }
 
 #[tokio::test]
-async fn fail_with_freeze_authority() {
+async fn allow_pool_with_freeze_authority() {
     let (mut banks_client, payer, recent_blockhash) = program_test().start().await;
     let stake_pool_accounts = StakePoolAccounts::default();
 
@@ -474,7 +478,7 @@ async fn fail_with_freeze_authority() {
     .await
     .unwrap();
 
-    let error = create_stake_pool(
+    let result = create_stake_pool(
         &mut banks_client,
         &payer,
         &recent_blockhash,
@@ -496,18 +500,9 @@ async fn fail_with_freeze_authority() {
         stake_pool_accounts.sol_referral_fee,
         stake_pool_accounts.max_validators,
     )
-    .await
-    .err()
-    .unwrap()
-    .unwrap();
-
-    assert_eq!(
-        error,
-        TransactionError::InstructionError(
-            2,
-            InstructionError::Custom(error::StakePoolError::InvalidMintFreezeAuthority as u32),
-        )
-    );
+    .await;
+    
+    assert!(result.is_ok());
 }
 
 #[tokio::test]
@@ -1629,6 +1624,33 @@ async fn fail_with_incorrect_mint_decimals() {
         TransactionError::InstructionError(
             2,
             InstructionError::Custom(error::StakePoolError::IncorrectMintDecimals as u32),
+        )
+    );
+}
+
+#[tokio::test]
+async fn fail_with_too_many_validators() {
+    let (mut banks_client, payer, recent_blockhash) = program_test().start().await;
+    let stake_pool_accounts = StakePoolAccounts {
+        max_validators: MAX_VALIDATORS_IN_POOL + 1,
+        ..Default::default()
+    };
+    let error = stake_pool_accounts
+        .initialize_stake_pool(
+            &mut banks_client,
+            &payer,
+            &recent_blockhash,
+            MINIMUM_RESERVE_LAMPORTS,
+        )
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        error,
+        TransactionError::InstructionError(
+            2,
+            InstructionError::Custom(error::StakePoolError::TooManyValidatorsInPool as u32),
         )
     );
 }
