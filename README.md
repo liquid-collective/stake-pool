@@ -38,4 +38,8 @@ solana program deploy --with-compute-unit-price 1000000  --max-sign-attempts 100
 
 ## Verified Build
 
-We verified the build using an [OtterVerify transaction](https://explorer.solana.com/tx/5coLdNVhQc3VBvxNr1W1pmfXXpBajnZ3xByPRLdRW1YZpqj5pB1X5BXA8D4eaZY2dVafWHL5fY3BuzVBi7rc3h6Z?cluster=mainnet). The program deployed matches the one in the [mainnet release PR](https://github.com/liquid-collective/stake-pool/pull/7).
+**Liquid Collective Release v1.0.0**
+The initial version of the program was deployed an verified via [OtterVerify transaction](https://explorer.solana.com/tx/5coLdNVhQc3VBvxNr1W1pmfXXpBajnZ3xByPRLdRW1YZpqj5pB1X5BXA8D4eaZY2dVafWHL5fY3BuzVBi7rc3h6Z?cluster=mainnet). The program deployed matches the one in the [mainnet release PR](https://github.com/liquid-collective/stake-pool/pull/7).
+
+**Liquid Collective Release v2.0.0**
+The upgraded program build has been verified via another [OtterVerify transaction](https://explorer.solana.com/tx/AuYmMgxZa4zEpYKJt5REcksTEj5P1DzD5VGmwGVimnweqV1UaypNvSakKESEurMkVKMMNQizQMBXhJqH2FSx5BA). The program dpeloyed matches the state of the program at commit `4d40b6e1de62310ead62fec4596f2ed7f506a3ee` and [LC release v2.0.0](https://github.com/liquid-collective/stake-pool/releases/tag/program%402.0.0-lc).
