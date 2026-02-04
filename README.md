@@ -27,7 +27,7 @@ Inside the `program` directory:
 First we need to build the program:
 
 ```bash
-cargo build-sbf
+pnpm programs:build
 ```
 
 Then we can run the `solana program deploy` command:
