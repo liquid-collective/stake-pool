@@ -22,7 +22,7 @@ The stake-pool is licensed under the Apache License, Version 2.0. You may obtain
 Changes to stake-pool are subject to the license described in [PATCH_LICENSE.txt](./PATCH_LICENSE.txt).
 
 ## Deployment
-Inside the root directory:
+Inside the project root directory:
 
 First we need to build the program:
 
