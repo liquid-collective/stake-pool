@@ -2,9 +2,9 @@ name: Main
 
 on:
   push:
-    branches: [main]
+    branches: [main, "liquid_collective_release/**"]
   pull_request:
-    branches: [main]
+    branches: [main, "liquid_collective_release/**"]
 
 env:
   JS_PACKAGES: "['clients-js-legacy']"

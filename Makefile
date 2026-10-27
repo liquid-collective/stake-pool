@@ -90,8 +90,10 @@ bench-%:
 format-rust:
 	cargo $(nightly) fmt --all $(ARGS)
 
+# Liquid Collective: no `--arch v3`, SBPFv3 is not active on mainnet and the
+# deployed program must be built for the architecture the clusters run.
 build-sbf-%:
-	cargo build-sbf --arch v3 --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
+	cargo build-sbf --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 build-wasm-%:
 	cargo build --target wasm32-unknown-unknown --manifest-path $(call make-path,$*)/Cargo.toml --all-features $(ARGS)
