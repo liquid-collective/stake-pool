@@ -29,13 +29,14 @@ fn process_instruction(
 security_txt! {
     // Required fields
     name: "SPL Stake Pool",
-    project_url: "https://www.solana-program.com/docs/stake-pool",
-    contacts: "link:https://github.com/solana-program/stake-pool/security/advisories/new,email:security@anza.xyz,discord:https://solana.com/discord",
-    policy: "https://github.com/solana-program/stake-pool/blob/master/SECURITY.md",
+    project_url: "https://liquidcollective.io/liquid-staked-sol/",
+    contacts: "mailto:security@liquidcollective.io",
+    policy: "https://github.com/liquid-collective/security/blob/main/VULNERABILITY_DISCLOSURE.md",
 
     // Optional Fields
     preferred_languages: "en",
-    source_code: "https://github.com/solana-program/stake-pool",
-    source_release: concat!("program@v", env!("CARGO_PKG_VERSION")),
-    auditors: "https://github.com/anza-xyz/security-audits#stake-pool"
+    source_code: "https://github.com/liquid-collective/stake-pool",
+    source_revision: "", // filled in by the release commit
+    source_release: concat!("program@v", env!("CARGO_PKG_VERSION"), "-lc.1"),
+    auditors: "https://certificate.quantstamp.com/full/liquid-collective-solana/cbb18ece-3a03-4897-a040-f197fc641e4d/index.html"
 }

@@ -1,4 +1,8 @@
 //! Program state processor
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025 and
+// 27-10-2026
+// Changes: Permissioning the stake-pool (`sol_withdraw_authority` gates
+// `WithdrawStake` and `WithdrawStakeWithSlippage`)
 
 use {
     crate::{
@@ -2812,6 +2816,7 @@ impl Processor {
         let clock = &Clock::from_account_info(clock_info)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let stake_program_info = next_account_info(account_info_iter)?;
+        let sol_withdraw_authority_info = next_account_info(account_info_iter);
 
         let rent = Rent::get()?;
 
@@ -2830,6 +2835,7 @@ impl Processor {
             stake_pool_info.key,
         )?;
 
+        stake_pool.check_sol_withdraw_authority(sol_withdraw_authority_info)?;
         if stake_pool.manager_fee_account != *manager_fee_info.key {
             return Err(StakePoolError::InvalidFeeAccount.into());
         }

@@ -1,4 +1,8 @@
 //! Instruction types
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025 and
+// 27-10-2026
+// Changes: Permissioning the stake-pool (`sol_withdraw_authority` gates
+// `WithdrawStake` and `WithdrawStakeWithSlippage`)
 
 // Remove the following `allow` when `Redelegate` is removed, required to avoid
 // warnings from uses of deprecated types during trait derivations.
@@ -333,6 +337,7 @@ pub enum StakePoolInstruction {
     ///  10. `[]` Sysvar clock account (required)
     ///  11. `[]` Pool token program id
     ///  12. `[]` Stake program id,
+    ///  13. `[s]` Stake pool sol withdraw authority (required if set on the pool)
     ///
     ///  User data: amount of pool tokens to withdraw
     WithdrawStake(u64),
@@ -682,6 +687,7 @@ pub enum StakePoolInstruction {
     ///  10. `[]` Sysvar clock account (required)
     ///  11. `[]` Pool token program id
     ///  12. `[]` Stake program id,
+    ///  13. `[s]` Stake pool sol withdraw authority (required if set on the pool)
     ///
     ///  User data: amount of pool tokens to withdraw
     WithdrawStakeWithSlippage {
@@ -2211,6 +2217,7 @@ fn withdraw_stake_internal(
     manager_fee_account: &Pubkey,
     pool_mint: &Pubkey,
     token_program_id: &Pubkey,
+    sol_withdraw_authority: &Pubkey,
     pool_tokens_in: u64,
     minimum_lamports_out: Option<u64>,
 ) -> Instruction {
@@ -2228,6 +2235,7 @@ fn withdraw_stake_internal(
         AccountMeta::new_readonly(solana_sdk_ids::sysvar::clock::id(), false),
         AccountMeta::new_readonly(*token_program_id, false),
         AccountMeta::new_readonly(solana_stake_interface::program::id(), false),
+        AccountMeta::new_readonly(*sol_withdraw_authority, true),
     ];
     if let Some(minimum_lamports_out) = minimum_lamports_out {
         Instruction {
@@ -2252,6 +2260,7 @@ fn withdraw_stake_internal(
 pub fn withdraw_stake(
     program_id: &Pubkey,
     stake_pool: &Pubkey,
+    sol_withdraw_authority: &Pubkey,
     validator_list_storage: &Pubkey,
     stake_pool_withdraw: &Pubkey,
     stake_to_split: &Pubkey,
@@ -2277,6 +2286,7 @@ pub fn withdraw_stake(
         manager_fee_account,
         pool_mint,
         token_program_id,
+        sol_withdraw_authority,
         pool_tokens_in,
         None,
     )
@@ -2286,6 +2296,7 @@ pub fn withdraw_stake(
 pub fn withdraw_stake_with_slippage(
     program_id: &Pubkey,
     stake_pool: &Pubkey,
+    sol_withdraw_authority: &Pubkey,
     validator_list_storage: &Pubkey,
     stake_pool_withdraw: &Pubkey,
     stake_to_split: &Pubkey,
@@ -2312,6 +2323,7 @@ pub fn withdraw_stake_with_slippage(
         manager_fee_account,
         pool_mint,
         token_program_id,
+        sol_withdraw_authority,
         pool_tokens_in,
         Some(minimum_lamports_out),
     )

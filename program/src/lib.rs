@@ -1,6 +1,10 @@
 #![deny(missing_docs)]
 
 //! A program for creating and managing pools of stake
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025 and
+// 27-10-2026
+// Changes: Permissioning the stake-pool (`sol_withdraw_authority` gates
+// `WithdrawStake` and `WithdrawStakeWithSlippage`), Liquid Collective program ids
 
 pub mod big_vec;
 pub mod error;
@@ -162,10 +166,10 @@ pub fn find_ephemeral_stake_program_address(
     )
 }
 
-solana_pubkey::declare_id!("SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy");
+solana_pubkey::declare_id!("LssoLRJHLA3T8Szwd84X3VT2pZYtGuiTEsvvwAKc6Ho");
 /// Program id for devnet
 pub mod devnet {
-    solana_pubkey::declare_id!("DPoo15wWDqpPJJtS2MUZ49aRxqz5ZaaJCJP4z8bLuib");
+    solana_pubkey::declare_id!("AHoLv7BSYnA3pZg4EBFR33gNhHC5cDtA18qdC3exAPtw");
 }
 
 #[cfg(test)]
