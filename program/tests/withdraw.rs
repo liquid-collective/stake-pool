@@ -381,6 +381,7 @@ async fn fail_with_wrong_token_program_id() {
         &[instruction::withdraw_stake(
             &id(),
             &stake_pool_accounts.stake_pool.pubkey(),
+            &stake_pool_accounts.sol_withdraw_authority.pubkey(),
             &stake_pool_accounts.validator_list.pubkey(),
             &stake_pool_accounts.withdraw_authority,
             &validator_stake_account.stake_account,
@@ -394,7 +395,11 @@ async fn fail_with_wrong_token_program_id() {
             tokens_to_burn,
         )],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &user_transfer_authority],
+        &[
+            &context.payer,
+            &user_transfer_authority,
+            &stake_pool_accounts.sol_withdraw_authority,
+        ],
         context.last_blockhash,
     );
     let transaction_error = context
