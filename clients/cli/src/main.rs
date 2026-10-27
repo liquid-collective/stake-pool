@@ -1952,6 +1952,41 @@ fn command_withdraw_stake(
     ];
     let mut new_stake_keypairs = vec![];
 
+    // The Liquid Collective fork requires the pool's SOL withdraw authority to
+    // sign `WithdrawStake`. A pool without one ignores the signer, so any
+    // signer will do in that case.
+    let sol_withdraw_authority = match (
+        config.funding_authority.as_ref(),
+        stake_pool.sol_withdraw_authority,
+    ) {
+        (Some(withdraw_authority), Some(expected_sol_withdraw_authority)) => {
+            if withdraw_authority.pubkey() != expected_sol_withdraw_authority {
+                let error = format!(
+                    "Invalid withdraw authority specified, expected {}, received {}",
+                    expected_sol_withdraw_authority,
+                    withdraw_authority.pubkey()
+                );
+                return Err(error.into());
+            }
+            signers.push(withdraw_authority.as_ref());
+            expected_sol_withdraw_authority
+        }
+        (Some(_), None) => {
+            return Err(
+                "SOL withdraw authority specified in arguments but stake pool has none".into(),
+            );
+        }
+        (None, Some(expected_sol_withdraw_authority)) => {
+            let error = format!(
+                "Stake pool requires the SOL withdraw authority {} to sign, specify it with \
+                 --funding-authority",
+                expected_sol_withdraw_authority
+            );
+            return Err(error.into());
+        }
+        (None, None) => user_transfer_authority.pubkey(),
+    };
+
     instructions.push(
         // Approve spending token
         spl_token_2022_interface::instruction::approve(
@@ -2007,6 +2042,7 @@ fn command_withdraw_stake(
         instructions.push(spl_stake_pool::instruction::withdraw_stake(
             &config.stake_pool_program_id,
             stake_pool_address,
+            &sol_withdraw_authority,
             &stake_pool.validator_list,
             &pool_withdraw_authority,
             &withdraw_account.stake_address,
