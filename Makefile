@@ -90,8 +90,11 @@ bench-%:
 format-rust:
 	cargo $(nightly) fmt --all $(ARGS)
 
-# Liquid Collective: no `--arch v3`, SBPFv3 is not active on mainnet and the
-# deployed program must be built for the architecture the clusters run.
+# Liquid Collective: build for SBPFv0, the architecture of the deployed
+# programs, instead of upstream's `--arch v3`. SBPFv3 deployment is active on
+# mainnet and devnet, but SBPFv0 deployment is still allowed there (the feature
+# `disable_sbpf_v0_v1_v2_deployment` is not active yet). Switch to `--arch v3`
+# before that feature activates.
 build-sbf-%:
 	cargo build-sbf --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
