@@ -36,7 +36,7 @@ security_txt! {
     // Optional Fields
     preferred_languages: "en",
     source_code: "https://github.com/liquid-collective/stake-pool",
-    source_revision: "", // filled in by the release commit
+    source_revision: "3402542b88648aa423a7aa0416ff1055f46081d3", // the commit before the release commit
     source_release: concat!("program@v", env!("CARGO_PKG_VERSION"), "-lc.1"),
     auditors: "https://certificate.quantstamp.com/full/liquid-collective-solana/cbb18ece-3a03-4897-a040-f197fc641e4d/index.html"
 }
