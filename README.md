@@ -28,11 +28,11 @@ This fork is upstream [`program@v2.2.0`](https://github.com/solana-program/stake
 - `WithdrawStake` and `WithdrawStakeWithSlippage` take an optional 14th account, the stake pool `sol_withdraw_authority`, as a signer. When the pool has a `sol_withdraw_authority` set, the instruction fails unless that account is present and has signed. The Rust builders `withdraw_stake` and `withdraw_stake_with_slippage` take it as their 3rd parameter. This is a breaking change from upstream's signature. Together with the upstream authorities for `DepositSol`, `DepositStake` and `WithdrawSol`, every instruction that moves user funds into or out of the pool can be restricted to a single authority. `program/tests/permissioning.rs` checks that every instruction variant is classified, so a new upstream instruction cannot be added unnoticed.
 - Liquid Collective program ids, `security.txt`, license and README.
 
-Upstream's freeze-authority restriction on the pool mint is no longer patched out: since v2.2.0 upstream allows it.
+The earlier Liquid Collective patch that allowed a freeze authority on the pool mint is dropped: since v2.2.0 upstream allows one natively.
 
 Tags are named `program@v<upstream version>-lc.<n>`, so the tag shows which upstream release the fork is based on.
 
-The JavaScript and Python clients are unmodified upstream code. They do not send the `sol_withdraw_authority` account, so they cannot withdraw stake from a pool that has one set.
+The JavaScript and Python clients only differ from upstream in their default program ids (the Liquid Collective ids from `program/src/lib.rs`, and the test validators load the program under that id). They do not send the `sol_withdraw_authority` account, so they cannot withdraw stake from a pool that has one set.
 
 ## Deployment
 

@@ -7,7 +7,7 @@ cd "${src_root}"
 ARGS=(
   -r
   -q
-  --bpf-program SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy ./target/deploy/spl_stake_pool.so
+  --bpf-program LssoLRJHLA3T8Szwd84X3VT2pZYtGuiTEsvvwAKc6Ho ./target/deploy/spl_stake_pool.so
 )
 PORT=8899
 PID=$(lsof -t -i:$PORT)
