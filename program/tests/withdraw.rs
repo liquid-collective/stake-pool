@@ -1,8 +1,4 @@
 #![allow(clippy::arithmetic_side_effects)]
-#![cfg(feature = "test-sbf")]
-// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
-// Changes: Permissioning the stake-pool and allowing freezable tokens
-
 mod helpers;
 
 use {
@@ -20,12 +16,12 @@ use {
         transport::TransportError,
     },
     spl_stake_pool::{error::StakePoolError, id, instruction, state},
-    spl_token::error::TokenError,
+    spl_token_interface::error::TokenError,
     test_case::test_case,
 };
 
-#[test_case(spl_token::id(); "token")]
-#[test_case(spl_token_2022::id(); "token-2022")]
+#[test_case(spl_token_interface::id(); "token")]
+#[test_case(spl_token_2022_interface::id(); "token-2022")]
 #[tokio::test]
 async fn success(token_program_id: Pubkey) {
     _success(token_program_id, SuccessTestType::Success).await;
@@ -33,7 +29,11 @@ async fn success(token_program_id: Pubkey) {
 
 #[tokio::test]
 async fn success_with_closed_manager_fee_account() {
-    _success(spl_token::id(), SuccessTestType::UninitializedManagerFee).await;
+    _success(
+        spl_token_interface::id(),
+        SuccessTestType::UninitializedManagerFee,
+    )
+    .await;
 }
 
 enum SuccessTestType {
@@ -49,7 +49,6 @@ async fn _success(token_program_id: Pubkey, test_type: SuccessTestType) {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
-        sol_withdraw_authority,
         tokens_to_withdraw,
     ) = setup_for_withdraw(token_program_id, 0).await;
 
@@ -161,7 +160,6 @@ async fn _success(token_program_id: Pubkey, test_type: SuccessTestType) {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -270,9 +268,8 @@ async fn fail_with_wrong_stake_program() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
-        sol_withdraw_authority,
         tokens_to_burn,
-    ) = setup_for_withdraw(spl_token::id(), 0).await;
+    ) = setup_for_withdraw(spl_token_interface::id(), 0).await;
 
     let new_authority = Pubkey::new_unique();
     let wrong_stake_program = Pubkey::new_unique();
@@ -289,7 +286,7 @@ async fn fail_with_wrong_stake_program() {
         AccountMeta::new(stake_pool_accounts.pool_fee_account.pubkey(), false),
         AccountMeta::new(stake_pool_accounts.pool_mint.pubkey(), false),
         AccountMeta::new_readonly(sysvar::clock::id(), false),
-        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(spl_token_interface::id(), false),
         AccountMeta::new_readonly(wrong_stake_program, false),
     ];
     let instruction = Instruction {
@@ -332,9 +329,8 @@ async fn fail_with_wrong_withdraw_authority() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
-        sol_withdraw_authority,
         tokens_to_burn,
-    ) = setup_for_withdraw(spl_token::id(), 0).await;
+    ) = setup_for_withdraw(spl_token_interface::id(), 0).await;
 
     let new_authority = Pubkey::new_unique();
     stake_pool_accounts.withdraw_authority = Keypair::new().pubkey();
@@ -344,7 +340,6 @@ async fn fail_with_wrong_withdraw_authority() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -376,9 +371,8 @@ async fn fail_with_wrong_token_program_id() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
-        sol_withdraw_authority,
         tokens_to_burn,
-    ) = setup_for_withdraw(spl_token::id(), 0).await;
+    ) = setup_for_withdraw(spl_token_interface::id(), 0).await;
 
     let new_authority = Pubkey::new_unique();
     let wrong_token_program = Keypair::new();
@@ -387,7 +381,7 @@ async fn fail_with_wrong_token_program_id() {
         &[instruction::withdraw_stake(
             &id(),
             &stake_pool_accounts.stake_pool.pubkey(),
-            &sol_withdraw_authority.pubkey(),
+            &stake_pool_accounts.sol_withdraw_authority.pubkey(),
             &stake_pool_accounts.validator_list.pubkey(),
             &stake_pool_accounts.withdraw_authority,
             &validator_stake_account.stake_account,
@@ -401,7 +395,11 @@ async fn fail_with_wrong_token_program_id() {
             tokens_to_burn,
         )],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &user_transfer_authority, &sol_withdraw_authority],
+        &[
+            &context.payer,
+            &user_transfer_authority,
+            &stake_pool_accounts.sol_withdraw_authority,
+        ],
         context.last_blockhash,
     );
     let transaction_error = context
@@ -429,9 +427,8 @@ async fn fail_with_wrong_validator_list() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
-        sol_withdraw_authority,
         tokens_to_burn,
-    ) = setup_for_withdraw(spl_token::id(), 0).await;
+    ) = setup_for_withdraw(spl_token_interface::id(), 0).await;
 
     let new_authority = Pubkey::new_unique();
     stake_pool_accounts.validator_list = Keypair::new();
@@ -441,7 +438,6 @@ async fn fail_with_wrong_validator_list() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -475,9 +471,8 @@ async fn fail_with_unknown_validator() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
-        sol_withdraw_authority,
         tokens_to_withdraw,
-    ) = setup_for_withdraw(spl_token::id(), 0).await;
+    ) = setup_for_withdraw(spl_token_interface::id(), 0).await;
 
     let unknown_stake = create_unknown_validator_stake(
         &mut context.banks_client,
@@ -494,7 +489,6 @@ async fn fail_with_unknown_validator() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -524,9 +518,8 @@ async fn fail_double_withdraw_to_the_same_account() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
-        sol_withdraw_authority,
         tokens_to_burn,
-    ) = setup_for_withdraw(spl_token::id(), 0).await;
+    ) = setup_for_withdraw(spl_token_interface::id(), 0).await;
 
     let new_authority = Pubkey::new_unique();
     let error = stake_pool_accounts
@@ -534,7 +527,6 @@ async fn fail_double_withdraw_to_the_same_account() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -565,7 +557,6 @@ async fn fail_double_withdraw_to_the_same_account() {
             &mut context.banks_client,
             &context.payer,
             &latest_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -593,9 +584,8 @@ async fn fail_without_token_approval() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
-        sol_withdraw_authority,
         tokens_to_burn,
-    ) = setup_for_withdraw(spl_token::id(), 0).await;
+    ) = setup_for_withdraw(spl_token_interface::id(), 0).await;
 
     revoke_tokens(
         &mut context.banks_client,
@@ -613,7 +603,6 @@ async fn fail_without_token_approval() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -647,9 +636,8 @@ async fn fail_with_not_enough_tokens() {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
-        sol_withdraw_authority,
         tokens_to_burn,
-    ) = setup_for_withdraw(spl_token::id(), 0).await;
+    ) = setup_for_withdraw(spl_token_interface::id(), 0).await;
 
     let last_blockhash = context
         .banks_client
@@ -673,7 +661,6 @@ async fn fail_with_not_enough_tokens() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -716,7 +703,6 @@ async fn fail_with_not_enough_tokens() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -762,7 +748,6 @@ async fn fail_with_not_enough_tokens() {
             &mut context.banks_client,
             &context.payer,
             &last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -783,94 +768,8 @@ async fn fail_with_not_enough_tokens() {
     );
 }
 
-#[tokio::test]
-async fn fail_with_wrong_sol_withdraw_authority() {
-    let (
-        mut context,
-        mut stake_pool_accounts,
-        validator_stake,
-        deposit_info,
-        user_transfer_authority,
-        user_stake_recipient,
-        _,
-        tokens_to_burn,
-    ) = setup_for_withdraw(spl_token::id(), 0).await;
-
-    let sol_withdraw_authority = Keypair::new();
-    let new_authority = Pubkey::new_unique();
-    let error = stake_pool_accounts
-        .withdraw_stake(
-            &mut context.banks_client,
-            &context.payer,
-            &context.last_blockhash,
-            &sol_withdraw_authority,
-            &user_stake_recipient.pubkey(),
-            &user_transfer_authority,
-            &deposit_info.pool_account.pubkey(),
-            &validator_stake.stake_account,
-            &new_authority,
-            tokens_to_burn,
-        )
-        .await
-        .unwrap()
-        .unwrap();
-
-      assert_eq!(
-          error,
-          TransactionError::InstructionError(
-              0,
-              InstructionError::Custom(StakePoolError::InvalidSolWithdrawAuthority as u32)
-          )
-      );
-}
-
-#[tokio::test]
-async fn fail_with_slippage_and_wrong_sol_withdraw_authority() {
-    let (
-        mut context,
-        mut stake_pool_accounts,
-        validator_stake_account,
-        deposit_info,
-        user_transfer_authority,
-        user_stake_recipient,
-        _,
-        tokens_to_withdraw,
-    ) = setup_for_withdraw(spl_token::id(), 0).await;
-
-    // first and only deposit, lamports:pool 1:1
-    let tokens_withdrawal_fee = stake_pool_accounts.calculate_withdrawal_fee(tokens_to_withdraw);
-    let received_lamports = tokens_to_withdraw - tokens_withdrawal_fee;
-    let sol_withdraw_authority = Keypair::new();
-    let new_authority = Pubkey::new_unique();
-    let error = stake_pool_accounts
-      .withdraw_stake_with_slippage(
-            &mut context.banks_client,
-            &context.payer,
-            &context.last_blockhash,
-            &sol_withdraw_authority,
-            &user_stake_recipient.pubkey(),
-            &user_transfer_authority,
-            &deposit_info.pool_account.pubkey(),
-            &validator_stake_account.stake_account,
-            &new_authority,
-            tokens_to_withdraw,
-            received_lamports + 1,
-        )
-        .await
-        .unwrap()
-        .unwrap();
-
-      assert_eq!(
-          error,
-          TransactionError::InstructionError(
-              0,
-              InstructionError::Custom(StakePoolError::InvalidSolWithdrawAuthority as u32)
-          )
-      );
-}
-
-#[test_case(spl_token::id(); "token")]
-#[test_case(spl_token_2022::id(); "token-2022")]
+#[test_case(spl_token_interface::id(); "token")]
+#[test_case(spl_token_2022_interface::id(); "token-2022")]
 #[tokio::test]
 async fn success_with_slippage(token_program_id: Pubkey) {
     let (
@@ -880,7 +779,6 @@ async fn success_with_slippage(token_program_id: Pubkey) {
         deposit_info,
         user_transfer_authority,
         user_stake_recipient,
-        sol_withdraw_authority,
         tokens_to_withdraw,
     ) = setup_for_withdraw(token_program_id, 0).await;
 
@@ -901,7 +799,6 @@ async fn success_with_slippage(token_program_id: Pubkey) {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -926,7 +823,6 @@ async fn success_with_slippage(token_program_id: Pubkey) {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),

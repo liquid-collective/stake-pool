@@ -1,6 +1,4 @@
 #![allow(clippy::arithmetic_side_effects)]
-#![cfg(feature = "test-sbf")]
-
 mod helpers;
 
 use {
@@ -9,7 +7,6 @@ use {
         borsh1::try_from_slice_unchecked,
         instruction::{AccountMeta, Instruction, InstructionError},
         pubkey::Pubkey,
-        sysvar,
     },
     solana_program_test::*,
     solana_sdk::{
@@ -17,9 +14,10 @@ use {
         transaction::{Transaction, TransactionError},
         transport::TransportError,
     },
+    solana_sdk_ids::sysvar,
     solana_stake_interface as stake,
     spl_stake_pool::{error::StakePoolError, id, instruction, state, MINIMUM_RESERVE_LAMPORTS},
-    spl_token::error as token_error,
+    spl_token_interface::error as token_error,
     test_case::test_case,
 };
 
@@ -89,6 +87,7 @@ async fn setup(
 
     let first_normal_slot = context.genesis_config().epoch_schedule.first_normal_slot;
     context.warp_to_slot(first_normal_slot + 1).unwrap();
+    fix_stake_history(&mut context).await;
     stake_pool_accounts
         .update_all(
             &mut context.banks_client,
@@ -124,8 +123,8 @@ async fn setup(
     )
 }
 
-#[test_case(spl_token::id(); "token")]
-#[test_case(spl_token_2022::id(); "token-2022")]
+#[test_case(spl_token_interface::id(); "token")]
+#[test_case(spl_token_2022_interface::id(); "token-2022")]
 #[tokio::test]
 async fn success(token_program_id: Pubkey) {
     let (
@@ -273,7 +272,7 @@ async fn success_with_extra_stake_lamports() {
         deposit_stake,
         pool_token_account,
         stake_lamports,
-    ) = setup(spl_token::id()).await;
+    ) = setup(spl_token_interface::id()).await;
 
     let extra_lamports = TEST_STAKE_AMOUNT * 3 + 1;
 
@@ -473,7 +472,7 @@ async fn fail_with_wrong_stake_program_id() {
         deposit_stake,
         pool_token_account,
         _stake_lamports,
-    ) = setup(spl_token::id()).await;
+    ) = setup(spl_token_interface::id()).await;
 
     let wrong_stake_program = Pubkey::new_unique();
 
@@ -492,7 +491,7 @@ async fn fail_with_wrong_stake_program_id() {
         AccountMeta::new_readonly(sysvar::clock::id(), false),
         AccountMeta::new_readonly(sysvar::rent::id(), false),
         AccountMeta::new_readonly(sysvar::stake_history::id(), false),
-        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(spl_token_interface::id(), false),
         AccountMeta::new_readonly(wrong_stake_program, false),
     ];
     let instruction = Instruction {
@@ -530,7 +529,7 @@ async fn fail_with_wrong_token_program_id() {
         deposit_stake,
         pool_token_account,
         _stake_lamports,
-    ) = setup(spl_token::id()).await;
+    ) = setup(spl_token_interface::id()).await;
 
     let wrong_token_program = Keypair::new();
 
@@ -579,7 +578,7 @@ async fn fail_with_wrong_validator_list_account() {
         deposit_stake,
         pool_token_account,
         _stake_lamports,
-    ) = setup(spl_token::id()).await;
+    ) = setup(spl_token_interface::id()).await;
 
     let wrong_validator_list = Keypair::new();
     stake_pool_accounts.validator_list = wrong_validator_list;
@@ -708,7 +707,7 @@ async fn fail_with_wrong_withdraw_authority() {
         deposit_stake,
         pool_token_account,
         _stake_lamports,
-    ) = setup(spl_token::id()).await;
+    ) = setup(spl_token_interface::id()).await;
 
     stake_pool_accounts.withdraw_authority = Pubkey::new_unique();
 
@@ -745,7 +744,7 @@ async fn fail_with_wrong_mint_for_receiver_acc() {
         deposit_stake,
         _pool_token_account,
         _stake_lamports,
-    ) = setup(spl_token::id()).await;
+    ) = setup(spl_token_interface::id()).await;
 
     let outside_mint = Keypair::new();
     let outside_withdraw_auth = Keypair::new();
@@ -803,8 +802,8 @@ async fn fail_with_wrong_mint_for_receiver_acc() {
     }
 }
 
-#[test_case(spl_token::id(); "token")]
-#[test_case(spl_token_2022::id(); "token-2022")]
+#[test_case(spl_token_interface::id(); "token")]
+#[test_case(spl_token_2022_interface::id(); "token-2022")]
 #[tokio::test]
 async fn success_with_slippage(token_program_id: Pubkey) {
     let (

@@ -4,14 +4,14 @@
 
 use {
     crate::{error::StakePoolError, processor::Processor},
-    solana_program::{
-        account_info::AccountInfo, entrypoint::ProgramResult, program_error::PrintProgramError,
-        pubkey::Pubkey,
-    },
+    solana_account_info::AccountInfo,
+    solana_msg::msg,
+    solana_program_error::ProgramResult,
+    solana_pubkey::Pubkey,
     solana_security_txt::security_txt,
 };
 
-solana_program::entrypoint!(process_instruction);
+solana_program_entrypoint::entrypoint!(process_instruction);
 fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -19,7 +19,7 @@ fn process_instruction(
 ) -> ProgramResult {
     if let Err(error) = Processor::process(program_id, accounts, instruction_data) {
         // catch the error so we can print it
-        error.print::<StakePoolError>();
+        msg!(error.to_str::<StakePoolError>());
         Err(error)
     } else {
         Ok(())
@@ -36,7 +36,7 @@ security_txt! {
     // Optional Fields
     preferred_languages: "en",
     source_code: "https://github.com/liquid-collective/stake-pool",
-    source_revision: "", // fill in after v1.0.0 bump lands
-    source_release: "stake-pool-v2.0.0",
+    source_revision: "3402542b88648aa423a7aa0416ff1055f46081d3", // an ancestor of the release commit with the same program source
+    source_release: concat!("program@v", env!("CARGO_PKG_VERSION"), "-lc.1"),
     auditors: "https://certificate.quantstamp.com/full/liquid-collective-solana/cbb18ece-3a03-4897-a040-f197fc641e4d/index.html"
 }

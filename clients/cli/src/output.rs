@@ -1,7 +1,8 @@
 use {
     serde::{Deserialize, Serialize},
     solana_cli_output::{QuietDisplay, VerboseDisplay},
-    solana_sdk::{native_token::Sol, pubkey::Pubkey, stake::state::Lockup},
+    solana_sdk::{native_token::Sol, pubkey::Pubkey},
+    solana_stake_interface::state::Lockup,
     spl_stake_pool::state::{
         Fee, PodStakeStatus, StakePool, StakeStatus, ValidatorList, ValidatorStakeInfo,
     },
@@ -247,6 +248,7 @@ pub(crate) struct CliStakePoolDetails {
     pub current_number_of_validators: u32,
     pub max_number_of_validators: u32,
     pub update_required: bool,
+    pub freezable: bool,
 }
 
 impl Display for CliStakePoolDetails {
@@ -276,7 +278,12 @@ impl Display for CliStakePoolDetails {
                 ""
             },
         )?;
-        writeln!(f, "Total Pool Tokens: {}", &self.total_pool_tokens,)?;
+        writeln!(
+            f,
+            "Total Pool Tokens: {}{}",
+            &self.total_pool_tokens,
+            if self.freezable { " [FREEZABLE]" } else { "" }
+        )?;
         writeln!(
             f,
             "Current Number of Validators: {}",
@@ -305,7 +312,8 @@ impl VerboseDisplay for CliStakePoolDetails {
         for stake_account in &self.stake_accounts {
             writeln!(
                 w,
-                "Vote Account: {}\tStake Account: {}\tActive Balance: {}\tTransient Stake Account: {}\tTransient Balance: {}\tLast Update Epoch: {}{}",
+                "Index: {}\tVote Account: {}\tStake Account: {}\tActive Balance: {}\tTransient Stake Account: {}\tTransient Balance: {}\tLast Update Epoch: {}{}",
+                stake_account.index,
                 stake_account.vote_account_address,
                 stake_account.stake_account_address,
                 Sol(stake_account.validator_active_stake_lamports),
@@ -347,6 +355,7 @@ impl VerboseDisplay for CliStakePoolDetails {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CliStakePoolStakeAccountInfo {
+    pub index: usize,
     pub vote_account_address: String,
     pub stake_account_address: String,
     pub validator_active_stake_lamports: u64,

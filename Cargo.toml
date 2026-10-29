@@ -1,15 +1,10 @@
+# Reduce the size of debug builds
+[profile.dev]
+debug = "line-tables-only"
+
 [workspace]
 resolver = "2"
 members = ["clients/cli", "program"]
-
-[workspace.metadata.cli]
-solana = "2.3.4"
-
-# Specify Rust toolchains for rustfmt, clippy, and build.
-# Any unprovided toolchains default to stable.
-[workspace.metadata.toolchains]
-format = "nightly-2025-02-16"
-lint = "nightly-2025-02-16"
 
 [workspace.metadata.spellcheck]
 config = "scripts/spellcheck.toml"
@@ -20,3 +15,6 @@ check-cfg = [
     'cfg(target_os, values("solana"))',
     'cfg(feature, values("frozen-abi", "no-entrypoint"))',
 ]
+
+[workspace.metadata.cli]
+solana = "4.2.2"

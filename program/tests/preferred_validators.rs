@@ -1,6 +1,4 @@
 #![allow(clippy::arithmetic_side_effects)]
-#![cfg(feature = "test-sbf")]
-
 mod helpers;
 
 use {
@@ -13,7 +11,7 @@ use {
         transaction::Transaction,
     },
     spl_stake_pool::{
-        id, instruction::{self, FundingType, PreferredValidatorType},
+        instruction::{self, PreferredValidatorType},
         state::StakeStatus,
         MINIMUM_RESERVE_LAMPORTS,
     },
@@ -53,25 +51,6 @@ async fn test_preferred_validator_removal() {
             &context.last_blockhash,
             initial_reserve_lamports,
         )
-        .await
-        .unwrap();
-
-    let sol_withdraw_authority = Keypair::new();
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction::set_funding_authority(
-            &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
-            &stake_pool_accounts.manager.pubkey(),
-            Some(&sol_withdraw_authority.pubkey()),
-            FundingType::SolWithdraw,
-        )],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_pool_accounts.manager],
-        context.last_blockhash,
-    );
-    context
-        .banks_client
-        .process_transaction(transaction)
         .await
         .unwrap();
 
@@ -216,7 +195,6 @@ async fn test_preferred_validator_removal() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &context.payer,
             &pool_token_account.pubkey(),
@@ -382,25 +360,6 @@ async fn test_preferred_validator_reset_on_cleanup_inactive_validator() {
         .await
         .unwrap();
 
-    let sol_withdraw_authority = Keypair::new();
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction::set_funding_authority(
-            &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
-            &stake_pool_accounts.manager.pubkey(),
-            Some(&sol_withdraw_authority.pubkey()),
-            FundingType::SolWithdraw,
-        )],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_pool_accounts.manager],
-        context.last_blockhash,
-    );
-    context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap();
-
     // Step 2: Add a validator to the pool
     let validator_stake_account = simple_add_validator_to_pool(
         &mut context.banks_client,
@@ -502,7 +461,6 @@ async fn test_preferred_validator_reset_on_cleanup_inactive_validator() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &context.payer,
             &pool_token_account.pubkey(),

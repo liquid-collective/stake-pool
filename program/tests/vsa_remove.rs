@@ -1,13 +1,9 @@
 #![allow(clippy::arithmetic_side_effects)]
-#![cfg(feature = "test-sbf")]
-// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
-// Changes: Permissioning the stake-pool and allowing freezable tokens
-
 mod helpers;
 
 use {
     bincode::deserialize,
-    helpers::*,
+    helpers::{set_validator_list_to_uninitialized_account, *},
     solana_program::{
         borsh1::try_from_slice_unchecked,
         instruction::{AccountMeta, Instruction, InstructionError},
@@ -23,7 +19,7 @@ use {
     solana_stake_interface as stake,
     solana_system_interface::instruction as system_instruction,
     spl_stake_pool::{
-        error::StakePoolError, find_transient_stake_program_address, id, instruction::{self, FundingType}, state,
+        error::StakePoolError, find_transient_stake_program_address, id, instruction, state,
         MINIMUM_RESERVE_LAMPORTS,
     },
     std::num::NonZeroU32,
@@ -296,10 +292,7 @@ async fn fail_double_remove() {
 
     assert_eq!(
         error,
-        TransactionError::InstructionError(
-            0,
-            InstructionError::BorshIoError("Unknown".to_string())
-        )
+        TransactionError::InstructionError(0, InstructionError::BorshIoError,)
     );
 }
 
@@ -437,25 +430,6 @@ async fn success_with_activating_transient_stake() {
 async fn success_with_deactivating_transient_stake() {
     let (mut context, stake_pool_accounts, validator_stake) = setup().await;
 
-    let sol_withdraw_authority = Keypair::new();
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction::set_funding_authority(
-            &id(),
-            &stake_pool_accounts.stake_pool.pubkey(),
-            &stake_pool_accounts.manager.pubkey(),
-            Some(&sol_withdraw_authority.pubkey()),
-            FundingType::SolWithdraw,
-        )],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_pool_accounts.manager],
-        context.last_blockhash,
-    );
-    context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap();
-
     let rent = context.banks_client.get_rent().await.unwrap();
     let stake_rent = rent.minimum_balance(std::mem::size_of::<stake::state::StakeStateV2>());
     let current_minimum_delegation = stake_pool_get_minimum_delegation(
@@ -541,7 +515,6 @@ async fn success_with_deactivating_transient_stake() {
             &mut context.banks_client,
             &context.payer,
             &context.last_blockhash,
-            &sol_withdraw_authority,
             &user_stake_recipient.pubkey(),
             &user_transfer_authority,
             &deposit_info.pool_account.pubkey(),
@@ -683,7 +656,7 @@ async fn success_resets_preferred_validator() {
 }
 
 #[tokio::test]
-async fn success_with_hijacked_transient_account() {
+async fn fail_cannot_hijack_transient_account() {
     let (mut context, stake_pool_accounts, validator_stake) = setup().await;
     let rent = context.banks_client.get_rent().await.unwrap();
     let stake_rent = rent.minimum_balance(std::mem::size_of::<stake::state::StakeStateV2>());
@@ -743,7 +716,7 @@ async fn success_with_hijacked_transient_account() {
     slot += slots_per_epoch;
     context.warp_to_slot(slot).unwrap();
 
-    // hijack
+    // attempt to hijack. fails initialization
     let validator_list = stake_pool_accounts
         .get_validator_list(&mut context.banks_client)
         .await;
@@ -782,21 +755,6 @@ async fn success_with_hijacked_transient_account() {
                 },
                 &stake::state::Lockup::default(),
             ),
-            instruction::update_stake_pool_balance(
-                &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
-                &stake_pool_accounts.withdraw_authority,
-                &stake_pool_accounts.validator_list.pubkey(),
-                &stake_pool_accounts.reserve_stake.pubkey(),
-                &stake_pool_accounts.pool_fee_account.pubkey(),
-                &stake_pool_accounts.pool_mint.pubkey(),
-                &spl_token::id(),
-            ),
-            instruction::cleanup_removed_validator_entries(
-                &id(),
-                &stake_pool_accounts.stake_pool.pubkey(),
-                &stake_pool_accounts.validator_list.pubkey(),
-            ),
         ],
         Some(&context.payer.pubkey()),
         &[&context.payer],
@@ -806,22 +764,28 @@ async fn success_with_hijacked_transient_account() {
         .banks_client
         .process_transaction(transaction)
         .await
-        .err();
-    assert!(error.is_none(), "{:?}", error);
+        .unwrap_err()
+        .unwrap();
 
-    // activate transient stake account
-    delegate_stake_account(
-        &mut context.banks_client,
-        &context.payer,
-        &context.last_blockhash,
-        &transient_stake_address,
-        &hijacker,
-        &validator_stake.vote.pubkey(),
-    )
-    .await;
+    assert_eq!(
+        error,
+        TransactionError::InstructionError(2, InstructionError::InvalidAccountData)
+    );
+}
 
-    // Remove works even though transient account is activating
-    let error = stake_pool_accounts
+#[tokio::test]
+async fn fail_not_updated_stake_pool() {
+    let (mut context, stake_pool_accounts, validator_stake) = setup().await;
+
+    // move to next epoch
+    let first_normal_slot = context.genesis_config().epoch_schedule.first_normal_slot;
+    let slots_per_epoch = context.genesis_config().epoch_schedule.slots_per_epoch;
+    let slot = first_normal_slot + slots_per_epoch + 1;
+    context.warp_to_slot(slot).unwrap();
+
+    // do not update stake pool
+
+    let transaction_error = stake_pool_accounts
         .remove_validator_from_pool(
             &mut context.banks_client,
             &context.payer,
@@ -830,47 +794,45 @@ async fn success_with_hijacked_transient_account() {
             &validator_stake.transient_stake_account,
         )
         .await;
-    assert!(error.is_none(), "{:?}", error);
-
-    // warp forward to merge
-    slot += slots_per_epoch;
-    context.warp_to_slot(slot).unwrap();
-
-    let error = stake_pool_accounts
-        .update_all(
-            &mut context.banks_client,
-            &context.payer,
-            &context.last_blockhash,
-            false,
-        )
-        .await;
-    assert!(error.is_none(), "{:?}", error);
-
-    // Check if account was removed from the list of stake accounts
-    let validator_list = get_account(
-        &mut context.banks_client,
-        &stake_pool_accounts.validator_list.pubkey(),
-    )
-    .await;
-    let validator_list =
-        try_from_slice_unchecked::<state::ValidatorList>(validator_list.data.as_slice()).unwrap();
-    assert_eq!(
-        validator_list,
-        state::ValidatorList {
-            header: state::ValidatorListHeader {
-                account_type: state::AccountType::ValidatorList,
-                max_validators: stake_pool_accounts.max_validators,
-            },
-            validators: vec![]
+    let transaction_error = transaction_error.unwrap();
+    match transaction_error {
+        TransportError::TransactionError(TransactionError::InstructionError(_, error)) => {
+            let program_error = StakePoolError::StakeListAndPoolOutOfDate as u32;
+            assert_eq!(error, InstructionError::Custom(program_error));
         }
-    );
+        _ => panic!("Wrong error occurs while trying to remove validator from outdated stake pool"),
+    }
 }
 
 #[tokio::test]
-async fn fail_not_updated_stake_pool() {} // TODO
+async fn fail_with_uninitialized_validator_list_account() {
+    let (mut context, stake_pool_accounts, validator_stake) = setup().await;
 
-#[tokio::test]
-async fn fail_with_uninitialized_validator_list_account() {} // TODO
+    // Set the validator list to an uninitialized account
+    set_validator_list_to_uninitialized_account(&mut context, &stake_pool_accounts).await;
+
+    // Attempt to remove validator from pool with uninitialized validator list
+    let transaction_error = stake_pool_accounts
+        .remove_validator_from_pool(
+            &mut context.banks_client,
+            &context.payer,
+            &context.last_blockhash,
+            &validator_stake.stake_account,
+            &validator_stake.transient_stake_account,
+        )
+        .await;
+
+    let transaction_error = transaction_error.unwrap();
+    let program_error = StakePoolError::InvalidState as u32;
+    match transaction_error {
+        TransportError::TransactionError(TransactionError::InstructionError(_, error)) => {
+            assert_eq!(error, InstructionError::Custom(program_error));
+        }
+        _ => panic!(
+            "Wrong error occurs while trying to remove validator with uninitialized validator list"
+        ),
+    }
+}
 
 #[tokio::test]
 async fn update_no_merge_after_removal() {
@@ -993,19 +955,8 @@ async fn success_remove_validator_with_transient_stake_triggers_deactivating_all
         .await;
     assert!(error.is_none(), "{:?}", error);
 
-    // Update the validator list to register the transient stake
-    let error = stake_pool_accounts
-        .update_validator_list_balance(
-            &mut context.banks_client,
-            &context.payer,
-            &context.last_blockhash,
-            1,
-            true, // no_merge = true to keep transient stake separate
-        )
-        .await;
-    assert!(error.is_none(), "{:?}", error);
-
     // Verify the validator has both active and transient stake
+    // (transient stake is registered during increase)
     let validator_list_before = stake_pool_accounts
         .get_validator_list(&mut context.banks_client)
         .await;
@@ -1041,8 +992,10 @@ async fn success_remove_validator_with_transient_stake_triggers_deactivating_all
     );
 
     // Verify both active and transient stake accounts are being deactivated
-    let active_stake_account = get_account(&mut context.banks_client, &validator_stake.stake_account).await;
-    let active_stake_state = deserialize::<stake::state::StakeStateV2>(&active_stake_account.data).unwrap();
+    let active_stake_account =
+        get_account(&mut context.banks_client, &validator_stake.stake_account).await;
+    let active_stake_state =
+        deserialize::<stake::state::StakeStateV2>(&active_stake_account.data).unwrap();
     if let stake::state::StakeStateV2::Stake(_, active_stake, _) = active_stake_state {
         assert_ne!(
             active_stake.delegation.deactivation_epoch,
@@ -1051,8 +1004,13 @@ async fn success_remove_validator_with_transient_stake_triggers_deactivating_all
         );
     }
 
-    let transient_stake_account = get_account(&mut context.banks_client, &validator_stake.transient_stake_account).await;
-    let transient_stake_state = deserialize::<stake::state::StakeStateV2>(&transient_stake_account.data).unwrap();
+    let transient_stake_account = get_account(
+        &mut context.banks_client,
+        &validator_stake.transient_stake_account,
+    )
+    .await;
+    let transient_stake_state =
+        deserialize::<stake::state::StakeStateV2>(&transient_stake_account.data).unwrap();
     if let stake::state::StakeStateV2::Stake(_, transient_stake, _) = transient_stake_state {
         assert_ne!(
             transient_stake.delegation.deactivation_epoch,

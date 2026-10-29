@@ -1,9 +1,5 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![allow(clippy::items_after_test_module)]
-#![cfg(feature = "test-sbf")]
-// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
-// Changes: Permissioning the stake-pool and allowing freezable tokens
-
 mod helpers;
 
 use {
@@ -28,7 +24,7 @@ use {
     spl_stake_pool::{
         error, id, instruction, state, MAX_VALIDATORS_IN_POOL, MINIMUM_RESERVE_LAMPORTS,
     },
-    spl_token_2022::extension::ExtensionType,
+    spl_token_2022_interface::extension::ExtensionType,
     test_case::test_case,
 };
 
@@ -52,7 +48,19 @@ async fn create_required_accounts(
     .await
     .unwrap();
 
-    let required_extensions = ExtensionType::get_required_init_account_extensions(mint_extensions);
+    let mut required_extensions = vec![];
+    for extension in mint_extensions {
+        match extension {
+            ExtensionType::NonTransferable => {
+                required_extensions.push(ExtensionType::NonTransferableAccount);
+                required_extensions.push(ExtensionType::ImmutableOwner);
+            }
+            ExtensionType::TransferFeeConfig => {
+                required_extensions.push(ExtensionType::TransferFeeAmount);
+            }
+            _ => {}
+        }
+    }
     create_token_account(
         banks_client,
         payer,
@@ -81,8 +89,8 @@ async fn create_required_accounts(
     .await;
 }
 
-#[test_case(spl_token::id(); "token")]
-#[test_case(spl_token_2022::id(); "token-2022")]
+#[test_case(spl_token_interface::id(); "token")]
+#[test_case(spl_token_2022_interface::id(); "token-2022")]
 #[tokio::test]
 async fn success(token_program_id: Pubkey) {
     let (mut banks_client, payer, recent_blockhash) = program_test().start().await;
@@ -315,7 +323,7 @@ async fn fail_with_wrong_max_validators() {
                 &stake_pool_accounts.reserve_stake.pubkey(),
                 &stake_pool_accounts.pool_mint.pubkey(),
                 &stake_pool_accounts.pool_fee_account.pubkey(),
-                &spl_token::id(),
+                &spl_token_interface::id(),
                 None,
                 stake_pool_accounts.epoch_fee,
                 stake_pool_accounts.withdrawal_fee,
@@ -422,7 +430,7 @@ async fn fail_with_wrong_mint_authority() {
 }
 
 #[tokio::test]
-async fn allow_pool_with_freeze_authority() {
+async fn succeed_with_freeze_authority() {
     let (mut banks_client, payer, recent_blockhash) = program_test().start().await;
     let stake_pool_accounts = StakePoolAccounts::default();
 
@@ -438,7 +446,7 @@ async fn allow_pool_with_freeze_authority() {
     // create mint with freeze authority
     let wrong_mint = Keypair::new();
     let rent = banks_client.get_rent().await.unwrap();
-    let mint_rent = rent.minimum_balance(spl_token::state::Mint::LEN);
+    let mint_rent = rent.minimum_balance(spl_token_interface::state::Mint::LEN);
 
     let transaction = Transaction::new_signed_with_payer(
         &[
@@ -446,11 +454,11 @@ async fn allow_pool_with_freeze_authority() {
                 &payer.pubkey(),
                 &wrong_mint.pubkey(),
                 mint_rent,
-                spl_token::state::Mint::LEN as u64,
-                &spl_token::id(),
+                spl_token_interface::state::Mint::LEN as u64,
+                &spl_token_interface::id(),
             ),
-            spl_token::instruction::initialize_mint(
-                &spl_token::id(),
+            spl_token_interface::instruction::initialize_mint(
+                &spl_token_interface::id(),
                 &wrong_mint.pubkey(),
                 &stake_pool_accounts.withdraw_authority,
                 Some(&stake_pool_accounts.withdraw_authority),
@@ -478,7 +486,7 @@ async fn allow_pool_with_freeze_authority() {
     .await
     .unwrap();
 
-    let result = create_stake_pool(
+    create_stake_pool(
         &mut banks_client,
         &payer,
         &recent_blockhash,
@@ -500,15 +508,15 @@ async fn allow_pool_with_freeze_authority() {
         stake_pool_accounts.sol_referral_fee,
         stake_pool_accounts.max_validators,
     )
-    .await;
-    
-    assert!(result.is_ok());
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn success_with_supported_extensions() {
     let (mut banks_client, payer, recent_blockhash) = program_test().start().await;
-    let stake_pool_accounts = StakePoolAccounts::new_with_token_program(spl_token_2022::id());
+    let stake_pool_accounts =
+        StakePoolAccounts::new_with_token_program(spl_token_2022_interface::id());
 
     let mint_extensions = vec![ExtensionType::TransferFeeConfig];
     create_required_accounts(
@@ -520,9 +528,7 @@ async fn success_with_supported_extensions() {
     )
     .await;
 
-    let mut account_extensions =
-        ExtensionType::get_required_init_account_extensions(&mint_extensions);
-    account_extensions.push(ExtensionType::CpiGuard);
+    let account_extensions = [ExtensionType::TransferFeeAmount, ExtensionType::CpiGuard];
     let pool_fee_account = Keypair::new();
     create_token_account(
         &mut banks_client,
@@ -566,9 +572,10 @@ async fn success_with_supported_extensions() {
 #[tokio::test]
 async fn fail_with_unsupported_mint_extension() {
     let (mut banks_client, payer, recent_blockhash) = program_test().start().await;
-    let stake_pool_accounts = StakePoolAccounts::new_with_token_program(spl_token_2022::id());
+    let stake_pool_accounts =
+        StakePoolAccounts::new_with_token_program(spl_token_2022_interface::id());
 
-    let mint_extensions = vec![ExtensionType::NonTransferable];
+    let mint_extensions = [ExtensionType::NonTransferable];
     create_required_accounts(
         &mut banks_client,
         &payer,
@@ -578,7 +585,10 @@ async fn fail_with_unsupported_mint_extension() {
     )
     .await;
 
-    let required_extensions = ExtensionType::get_required_init_account_extensions(&mint_extensions);
+    let required_extensions = [
+        ExtensionType::NonTransferableAccount,
+        ExtensionType::ImmutableOwner,
+    ];
     let pool_fee_account = Keypair::new();
     create_token_account(
         &mut banks_client,
@@ -632,7 +642,8 @@ async fn fail_with_unsupported_mint_extension() {
 #[tokio::test]
 async fn fail_with_unsupported_account_extension() {
     let (mut banks_client, payer, recent_blockhash) = program_test().start().await;
-    let stake_pool_accounts = StakePoolAccounts::new_with_token_program(spl_token_2022::id());
+    let stake_pool_accounts =
+        StakePoolAccounts::new_with_token_program(spl_token_2022_interface::id());
 
     create_required_accounts(
         &mut banks_client,
@@ -820,13 +831,13 @@ async fn fail_with_fee_owned_by_wrong_token_program_id() {
 
     let rent = banks_client.get_rent().await.unwrap();
 
-    let account_rent = rent.minimum_balance(spl_token::state::Account::LEN);
+    let account_rent = rent.minimum_balance(spl_token_interface::state::Account::LEN);
     let transaction = Transaction::new_signed_with_payer(
         &[system_instruction::create_account(
             &payer.pubkey(),
             &stake_pool_accounts.pool_fee_account.pubkey(),
             account_rent,
-            spl_token::state::Account::LEN as u64,
+            spl_token_interface::state::Account::LEN as u64,
             &wrong_token_program.pubkey(),
         )],
         Some(&payer.pubkey()),
@@ -923,14 +934,14 @@ async fn fail_with_wrong_fee_account() {
     .await
     .unwrap();
     let rent = banks_client.get_rent().await.unwrap();
-    let account_rent = rent.minimum_balance(spl_token::state::Account::LEN);
+    let account_rent = rent.minimum_balance(spl_token_interface::state::Account::LEN);
 
     let mut transaction = Transaction::new_with_payer(
         &[system_instruction::create_account(
             &payer.pubkey(),
             &stake_pool_accounts.pool_fee_account.pubkey(),
             account_rent,
-            spl_token::state::Account::LEN as u64,
+            spl_token_interface::state::Account::LEN as u64,
             &Keypair::new().pubkey(),
         )],
         Some(&payer.pubkey()),
@@ -1054,7 +1065,7 @@ async fn fail_with_not_rent_exempt_pool() {
                 &stake_pool_accounts.reserve_stake.pubkey(),
                 &stake_pool_accounts.pool_mint.pubkey(),
                 &stake_pool_accounts.pool_fee_account.pubkey(),
-                &spl_token::id(),
+                &spl_token_interface::id(),
                 None,
                 stake_pool_accounts.epoch_fee,
                 stake_pool_accounts.withdrawal_fee,
@@ -1133,7 +1144,7 @@ async fn fail_with_not_rent_exempt_validator_list() {
                 &stake_pool_accounts.reserve_stake.pubkey(),
                 &stake_pool_accounts.pool_mint.pubkey(),
                 &stake_pool_accounts.pool_fee_account.pubkey(),
-                &spl_token::id(),
+                &spl_token_interface::id(),
                 None,
                 stake_pool_accounts.epoch_fee,
                 stake_pool_accounts.withdrawal_fee,
@@ -1207,7 +1218,7 @@ async fn fail_without_manager_signature() {
         AccountMeta::new_readonly(stake_pool_accounts.pool_fee_account.pubkey(), false),
         AccountMeta::new_readonly(sysvar::clock::id(), false),
         AccountMeta::new_readonly(sysvar::rent::id(), false),
-        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(spl_token_interface::id(), false),
     ];
     let stake_pool_init_instruction = Instruction {
         program_id: id(),

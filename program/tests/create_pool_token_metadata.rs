@@ -1,6 +1,5 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![allow(clippy::items_after_test_module)]
-#![cfg(feature = "test-sbf")]
 mod helpers;
 
 use {
@@ -12,7 +11,7 @@ use {
         transaction::{Transaction, TransactionError},
     },
     spl_stake_pool::{
-        error::StakePoolError::{AlreadyInUse, SignatureMissing, WrongManager},
+        error::StakePoolError::{SignatureMissing, WrongManager},
         instruction, MINIMUM_RESERVE_LAMPORTS,
     },
     test_case::test_case,
@@ -36,7 +35,7 @@ async fn setup(token_program_id: Pubkey) -> (ProgramTestContext, StakePoolAccoun
     (context, stake_pool_accounts)
 }
 
-#[test_case(spl_token::id(); "token")]
+#[test_case(spl_token_interface::id(); "token")]
 //#[test_case(spl_token_2022::id(); "token-2022")] enable once metaplex supports token-2022
 #[tokio::test]
 async fn success(token_program_id: Pubkey) {
@@ -83,7 +82,7 @@ async fn success(token_program_id: Pubkey) {
 
 #[tokio::test]
 async fn fail_manager_did_not_sign() {
-    let (context, stake_pool_accounts) = setup(spl_token::id()).await;
+    let (context, stake_pool_accounts) = setup(spl_token_interface::id()).await;
 
     let name = "test_name";
     let symbol = "SYM";
@@ -127,7 +126,7 @@ async fn fail_manager_did_not_sign() {
 
 #[tokio::test]
 async fn fail_wrong_manager_signed() {
-    let (context, stake_pool_accounts) = setup(spl_token::id()).await;
+    let (context, stake_pool_accounts) = setup(spl_token_interface::id()).await;
 
     let name = "test_name";
     let symbol = "SYM";
@@ -171,7 +170,7 @@ async fn fail_wrong_manager_signed() {
 
 #[tokio::test]
 async fn fail_wrong_mpl_metadata_program() {
-    let (context, stake_pool_accounts) = setup(spl_token::id()).await;
+    let (context, stake_pool_accounts) = setup(spl_token_interface::id()).await;
 
     let name = "test_name";
     let symbol = "SYM";
@@ -217,7 +216,7 @@ async fn fail_wrong_mpl_metadata_program() {
 
 #[tokio::test]
 async fn fail_create_metadata_twice() {
-    let (context, stake_pool_accounts) = setup(spl_token::id()).await;
+    let (context, stake_pool_accounts) = setup(spl_token_interface::id()).await;
 
     let name = "test_name";
     let symbol = "SYM";
@@ -235,7 +234,7 @@ async fn fail_create_metadata_twice() {
     );
 
     let transaction = Transaction::new_signed_with_payer(
-        &[ix.clone()],
+        core::slice::from_ref(&ix),
         Some(&context.payer.pubkey()),
         &[&context.payer, &stake_pool_accounts.manager],
         context.last_blockhash,
@@ -265,8 +264,8 @@ async fn fail_create_metadata_twice() {
 
     match error {
         TransactionError::InstructionError(_, InstructionError::Custom(error_index)) => {
-            let program_error = AlreadyInUse as u32;
-            assert_eq!(error_index, program_error);
+            const METAPLEX_ERROR_CODE: u32 = 199;
+            assert_eq!(error_index, METAPLEX_ERROR_CODE);
         }
         _ => panic!("Wrong error occurs while trying to create pool token metadata twice"),
     }

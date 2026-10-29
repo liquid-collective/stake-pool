@@ -3,24 +3,22 @@
 use {
     crate::{
         big_vec::BigVec, error::StakePoolError, MAX_WITHDRAWAL_FEE_INCREASE,
-        WITHDRAWAL_BASELINE_FEE,
+        MAX_WITHDRAWAL_FEE_INCREASE_FACTOR, WITHDRAWAL_BASELINE_FEE,
     },
     borsh::{BorshDeserialize, BorshSchema, BorshSerialize},
     bytemuck::{Pod, Zeroable},
     num_derive::{FromPrimitive, ToPrimitive},
     num_traits::{FromPrimitive, ToPrimitive},
-    solana_program::{
-        account_info::AccountInfo,
-        borsh1::get_instance_packed_len,
-        msg,
-        program_error::ProgramError,
-        program_memory::sol_memcmp,
-        program_pack::{Pack, Sealed},
-        pubkey::{Pubkey, PUBKEY_BYTES},
-        stake::state::Lockup,
-    },
+    solana_account_info::AccountInfo,
+    solana_borsh::v1::get_instance_packed_len,
+    solana_msg::msg,
+    solana_program_error::ProgramError,
+    solana_program_memory::sol_memcmp,
+    solana_program_pack::{Pack, Sealed},
+    solana_pubkey::{Pubkey, PUBKEY_BYTES},
+    solana_stake_interface::state::Lockup,
     spl_pod::primitives::{PodU32, PodU64},
-    spl_token_2022::{
+    spl_token_2022_interface::{
         extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions},
         state::{Account, AccountState, Mint},
     },
@@ -294,7 +292,7 @@ impl StakePool {
 
     /// Check if the manager fee info is a valid token program account
     /// capable of receiving tokens from the mint.
-    pub(crate) fn check_manager_fee_info(
+    pub fn check_manager_fee_info(
         &self,
         manager_fee_info: &AccountInfo,
     ) -> Result<(), ProgramError> {
@@ -505,7 +503,7 @@ pub fn is_extension_supported_for_mint(extension_type: &ExtensionType) -> bool {
         ExtensionType::TransferFeeConfig,
         ExtensionType::ConfidentialTransferMint,
         ExtensionType::ConfidentialTransferFeeConfig,
-        ExtensionType::DefaultAccountState, // ok, but a freeze authority is not
+        ExtensionType::DefaultAccountState,
         ExtensionType::InterestBearingConfig,
         ExtensionType::MetadataPointer,
         ExtensionType::TokenMetadata,
@@ -570,6 +568,7 @@ pub struct ValidatorListHeader {
     Copy,
     Clone,
     Debug,
+    Default,
     PartialEq,
     BorshDeserialize,
     BorshSerialize,
@@ -577,6 +576,7 @@ pub struct ValidatorListHeader {
 )]
 pub enum StakeStatus {
     /// Stake account is active, there may be a transient stake as well
+    #[default]
     Active,
     /// Only transient stake account exists, when a transient stake is
     /// deactivating during validator removal
@@ -590,11 +590,6 @@ pub enum StakeStatus {
     /// Both the transient and validator stake account are deactivating, when
     /// a validator is removed with a transient stake active
     DeactivatingAll,
-}
-impl Default for StakeStatus {
-    fn default() -> Self {
-        Self::Active
-    }
 }
 
 /// Wrapper struct that can be `Pod`, containing a byte that *should* be a valid
@@ -733,11 +728,13 @@ impl ValidatorStakeInfo {
     /// Performs a very cheap comparison, for checking if this validator stake
     /// info matches the vote account address
     pub fn memcmp_pubkey(data: &[u8], vote_address: &Pubkey) -> bool {
-        sol_memcmp(
-            &data[41..41_usize.saturating_add(PUBKEY_BYTES)],
-            vote_address.as_ref(),
-            PUBKEY_BYTES,
-        ) == 0
+        unsafe {
+            sol_memcmp(
+                &data[41..41_usize.saturating_add(PUBKEY_BYTES)],
+                vote_address.as_ref(),
+                PUBKEY_BYTES,
+            ) == 0
+        }
     }
 
     /// Performs a comparison, used to check if this validator stake
@@ -856,7 +853,7 @@ impl ValidatorListHeader {
     }
 
     /// Extracts the validator list into its header and internal `BigVec`
-    pub fn deserialize_vec(data: &mut [u8]) -> Result<(Self, BigVec), ProgramError> {
+    pub fn deserialize_vec(data: &mut [u8]) -> Result<(Self, BigVec<'_>), ProgramError> {
         let mut data_mut = data.borrow();
         let header = ValidatorListHeader::deserialize(&mut data_mut)?;
         let length = get_instance_packed_len(&header)?;
@@ -871,19 +868,15 @@ impl ValidatorListHeader {
 /// Wrapper type that "counts down" epochs, which is Borsh-compatible with the
 /// native `Option`
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, BorshSerialize, BorshDeserialize, BorshSchema)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, BorshSerialize, BorshDeserialize, BorshSchema)]
 pub enum FutureEpoch<T> {
     /// Nothing is set
+    #[default]
     None,
     /// Value is ready after the next epoch boundary
     One(T),
     /// Value is ready after two epoch boundaries
     Two(T),
-}
-impl<T> Default for FutureEpoch<T> {
-    fn default() -> Self {
-        Self::None
-    }
 }
 impl<T> FutureEpoch<T> {
     /// Create a new value to be unlocked in a two epochs
@@ -959,8 +952,8 @@ impl Fee {
     /// Withdrawal fees have some additional restrictions, this function checks
     /// if those are met, returning an error if not.
     pub fn check_withdrawal(&self, old_withdrawal_fee: &Fee) -> Result<(), StakePoolError> {
-        // If the previous withdrawal fee was 0, we allow the fee to be set to a
-        // maximum of (WITHDRAWAL_BASELINE_FEE * MAX_WITHDRAWAL_FEE_INCREASE)
+        // If the previous withdrawal fee was 0, we allow the fee to be set to
+        // WITHDRAWAL_BASELINE_FEE * MAX_WITHDRAWAL_FEE_INCREASE_FACTOR
         let (old_num, old_denom) =
             if old_withdrawal_fee.denominator == 0 || old_withdrawal_fee.numerator == 0 {
                 (
@@ -971,16 +964,42 @@ impl Fee {
                 (old_withdrawal_fee.numerator, old_withdrawal_fee.denominator)
             };
 
-        // Check that new_fee / old_fee <= MAX_WITHDRAWAL_FEE_INCREASE
+        // Check that new_fee - old_fee <= MAX_WITHDRAWAL_FEE_INCREASE
+        // Program fails if provided numerator or denominator is too large, resulting in
+        // overflow
+        if (old_denom as u128)
+            .checked_mul(self.denominator as u128)
+            .and_then(|x| x.checked_mul(MAX_WITHDRAWAL_FEE_INCREASE.numerator as u128))
+            .ok_or(StakePoolError::CalculationFailure)?
+            < ((self.numerator as u128)
+                .checked_mul(old_denom as u128)
+                .ok_or(StakePoolError::CalculationFailure)?
+                .saturating_sub(
+                    (self.denominator as u128)
+                        .checked_mul(old_num as u128)
+                        .ok_or(StakePoolError::CalculationFailure)?,
+                )
+                .checked_mul(MAX_WITHDRAWAL_FEE_INCREASE.denominator as u128)
+                .ok_or(StakePoolError::CalculationFailure)?)
+        {
+            msg!(
+                "Fee increase exceeds maximum allowed, need to increase by {} / {}",
+                MAX_WITHDRAWAL_FEE_INCREASE.numerator,
+                MAX_WITHDRAWAL_FEE_INCREASE.denominator,
+            );
+            return Err(StakePoolError::FeeIncreaseTooHigh);
+        }
+
+        // Check that new_fee / old_fee <= MAX_WITHDRAWAL_FEE_INCREASE_FACTOR
         // Program fails if provided numerator or denominator is too large, resulting in
         // overflow
         if (old_num as u128)
             .checked_mul(self.denominator as u128)
-            .map(|x| x.checked_mul(MAX_WITHDRAWAL_FEE_INCREASE.numerator as u128))
+            .and_then(|x| x.checked_mul(MAX_WITHDRAWAL_FEE_INCREASE_FACTOR.numerator as u128))
             .ok_or(StakePoolError::CalculationFailure)?
             < (self.numerator as u128)
                 .checked_mul(old_denom as u128)
-                .map(|x| x.checked_mul(MAX_WITHDRAWAL_FEE_INCREASE.denominator as u128))
+                .and_then(|x| x.checked_mul(MAX_WITHDRAWAL_FEE_INCREASE_FACTOR.denominator as u128))
                 .ok_or(StakePoolError::CalculationFailure)?
         {
             msg!(
@@ -1059,11 +1078,9 @@ mod test {
     use {
         super::*,
         proptest::prelude::*,
-        solana_program::{
-            borsh1::{get_packed_len, try_from_slice_unchecked},
-            clock::{DEFAULT_SLOTS_PER_EPOCH, DEFAULT_S_PER_SLOT, SECONDS_PER_DAY},
-            native_token::LAMPORTS_PER_SOL,
-        },
+        solana_borsh::v1::{get_packed_len, try_from_slice_unchecked},
+        solana_clock::{DEFAULT_SLOTS_PER_EPOCH, DEFAULT_S_PER_SLOT, SECONDS_PER_DAY},
+        solana_native_token::LAMPORTS_PER_SOL,
     };
 
     fn uninitialized_validator_list() -> ValidatorList {
@@ -1466,5 +1483,37 @@ mod test {
 
         let withdraw_result = stake_pool.calc_lamports_withdraw_amount(1).unwrap();
         assert_eq!(stake_pool.total_lamports, withdraw_result);
+    }
+
+    #[test]
+    fn check_withdrawal_fee_overflow_failure() {
+        let old_fee = Fee {
+            numerator: 1,
+            denominator: u64::MAX,
+        };
+        let new_fee = Fee {
+            numerator: u64::MAX,
+            denominator: u64::MAX,
+        };
+        assert_eq!(
+            StakePoolError::CalculationFailure,
+            new_fee.check_withdrawal(&old_fee).unwrap_err()
+        );
+    }
+
+    #[test]
+    fn check_withdrawal_fee_max_increase() {
+        let old_fee = Fee {
+            numerator: 10,
+            denominator: 200,
+        };
+        let new_fee = Fee {
+            numerator: 11_000_000_000_000_001,
+            denominator: 200_000_000_000_000_000,
+        };
+        assert_eq!(
+            StakePoolError::FeeIncreaseTooHigh,
+            new_fee.check_withdrawal(&old_fee).unwrap_err()
+        );
     }
 }

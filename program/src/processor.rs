@@ -1,6 +1,8 @@
 //! Program state processor
-// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025
-// Changes: Permissioning the stake-pool and allowing freezable tokens
+// Modified by Alluvial Finance, Inc. for Liquid Collective on 25-02-2025 and
+// 27-10-2026
+// Changes: Permissioning the stake-pool (`sol_withdraw_authority` gates
+// `WithdrawStake` and `WithdrawStakeWithSlippage`)
 
 use {
     crate::{
@@ -23,24 +25,19 @@ use {
         TRANSIENT_STAKE_SEED_PREFIX,
     },
     borsh::BorshDeserialize,
-    num_traits::FromPrimitive,
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        borsh1::try_from_slice_unchecked,
-        clock::{Clock, Epoch},
-        decode_error::DecodeError,
-        entrypoint::ProgramResult,
-        epoch_rewards::EpochRewards,
-        msg,
-        program::{invoke, invoke_signed},
-        program_error::{PrintProgramError, ProgramError},
-        pubkey::Pubkey,
-        rent::Rent,
-        sysvar::Sysvar,
-    },
+    solana_account_info::{next_account_info, AccountInfo},
+    solana_borsh::v1::try_from_slice_unchecked,
+    solana_clock::{Clock, Epoch},
+    solana_cpi::{invoke, invoke_signed},
+    solana_epoch_rewards::EpochRewards,
+    solana_msg::msg,
+    solana_program_error::{ProgramError, ProgramResult},
+    solana_pubkey::Pubkey,
+    solana_rent::Rent,
     solana_stake_interface as stake,
     solana_system_interface::{instruction as system_instruction, program as system_program},
-    spl_token_2022::{
+    solana_sysvar::{Sysvar, SysvarSerialize},
+    spl_token_2022_interface::{
         check_spl_token_program_account,
         extension::{BaseStateWithExtensions, StateWithExtensions},
         native_mint,
@@ -320,7 +317,7 @@ fn create_stake_account(
 ) -> Result<(), ProgramError> {
     invoke_signed(
         &system_instruction::allocate(stake_account_info.key, stake_space as u64),
-        &[stake_account_info.clone()],
+        core::slice::from_ref(&stake_account_info),
         &[stake_account_signer_seeds],
     )?;
     invoke_signed(
@@ -576,7 +573,7 @@ impl Processor {
         authority: AccountInfo<'a>,
         amount: u64,
     ) -> Result<(), ProgramError> {
-        let ix = spl_token_2022::instruction::burn(
+        let ix = spl_token_2022_interface::instruction::burn(
             token_program.key,
             burn_account.key,
             mint.key,
@@ -603,7 +600,7 @@ impl Processor {
         let authority_signature_seeds = [stake_pool.as_ref(), authority_type, &[bump_seed]];
         let signers = &[&authority_signature_seeds[..]];
 
-        let ix = spl_token_2022::instruction::mint_to(
+        let ix = spl_token_2022_interface::instruction::mint_to(
             token_program.key,
             mint.key,
             destination.key,
@@ -626,7 +623,7 @@ impl Processor {
         amount: u64,
         decimals: u8,
     ) -> Result<(), ProgramError> {
-        let ix = spl_token_2022::instruction::transfer_checked(
+        let ix = spl_token_2022_interface::instruction::transfer_checked(
             token_program.key,
             source.key,
             mint.key,
@@ -644,7 +641,7 @@ impl Processor {
         destination: AccountInfo<'a>,
         amount: u64,
     ) -> Result<(), ProgramError> {
-        let ix = solana_program::system_instruction::transfer(source.key, destination.key, amount);
+        let ix = system_instruction::transfer(source.key, destination.key, amount);
         invoke(&ix, &[source, destination])
     }
 
@@ -805,6 +802,7 @@ impl Processor {
             msg!("Reserve stake account not owned by stake program");
             return Err(ProgramError::IncorrectProgramId);
         }
+        let reserve_rent = rent.minimum_balance(reserve_stake_info.data_len());
         let stake_state = try_from_slice_unchecked::<stake::state::StakeStateV2>(
             &reserve_stake_info.data.borrow(),
         )?;
@@ -833,7 +831,7 @@ impl Processor {
             }
             reserve_stake_info
                 .lamports()
-                .checked_sub(minimum_reserve_lamports(&meta))
+                .checked_sub(minimum_reserve_lamports(reserve_rent))
                 .ok_or(StakePoolError::CalculationFailure)?
         } else {
             msg!("Reserve stake account not in intialized state");
@@ -987,13 +985,8 @@ impl Processor {
             .saturating_add(rent.minimum_balance(stake_space));
 
         // Check that we're not draining the reserve totally
-        let reserve_stake = try_from_slice_unchecked::<stake::state::StakeStateV2>(
-            &reserve_stake_info.data.borrow(),
-        )?;
-        let reserve_meta = reserve_stake
-            .meta()
-            .ok_or(StakePoolError::WrongStakeStake)?;
-        let minimum_lamports = minimum_reserve_lamports(&reserve_meta);
+        let reserve_rent = rent.minimum_balance(reserve_stake_info.data_len());
+        let minimum_lamports = minimum_reserve_lamports(reserve_rent);
         let reserve_lamports = reserve_stake_info.lamports();
         if reserve_lamports.saturating_sub(required_lamports) < minimum_lamports {
             msg!(
@@ -1135,18 +1128,16 @@ impl Processor {
                         &meta,
                         withdraw_authority_info.key,
                         &stake_pool.lockup,
-                    ) =>
+                    ) && stake.delegation.deactivation_epoch == Epoch::MAX =>
                 {
-                    if stake.delegation.deactivation_epoch == Epoch::MAX {
-                        Self::stake_deactivate(
-                            transient_stake_account_info.clone(),
-                            clock_info.clone(),
-                            withdraw_authority_info.clone(),
-                            stake_pool_info.key,
-                            AUTHORITY_WITHDRAW,
-                            stake_pool.stake_withdraw_bump_seed,
-                        )?;
-                    }
+                    Self::stake_deactivate(
+                        transient_stake_account_info.clone(),
+                        clock_info.clone(),
+                        withdraw_authority_info.clone(),
+                        stake_pool_info.key,
+                        AUTHORITY_WITHDRAW,
+                        stake_pool.stake_withdraw_bump_seed,
+                    )?;
                 }
                 _ => (),
             }
@@ -1251,7 +1242,8 @@ impl Processor {
             stake_pool.check_reserve_stake(reserve_stake_info)?;
         }
 
-        let (meta, stake) = get_stake_state(validator_stake_account_info)?;
+        let validator_stake_rent = rent.minimum_balance(validator_stake_account_info.data_len());
+        let (_, stake) = get_stake_state(validator_stake_account_info)?;
         let vote_account_address = stake.delegation.voter_pubkey;
 
         let maybe_validator_stake_info = validator_list.find_mut::<ValidatorStakeInfo, _>(|x| {
@@ -1314,7 +1306,8 @@ impl Processor {
             .lamports()
             .checked_sub(lamports)
             .ok_or(ProgramError::InsufficientFunds)?;
-        let required_lamports = minimum_stake_lamports(&meta, stake_minimum_delegation);
+        let required_lamports =
+            minimum_stake_lamports(validator_stake_rent, stake_minimum_delegation);
         if remaining_lamports < required_lamports {
             msg!("Need at least {} lamports in the stake account after decrease, {} requested, {} is the current possible maximum",
                 required_lamports,
@@ -1870,6 +1863,8 @@ impl Processor {
         let stake_program_info = next_account_info(account_info_iter)?;
         let validator_stake_accounts = account_info_iter.as_slice();
 
+        let rent = Rent::get()?;
+
         check_account_owner(stake_pool_info, program_id)?;
         let stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data.borrow())?;
         if !stake_pool.is_valid() {
@@ -1947,6 +1942,8 @@ impl Processor {
             {
                 continue;
             };
+
+            let validator_stake_rent = rent.minimum_balance(validator_stake_info.data_len());
 
             let mut active_stake_lamports = 0;
             let mut transient_stake_lamports = 0;
@@ -2082,7 +2079,7 @@ impl Processor {
                     let additional_lamports = validator_stake_info
                         .lamports()
                         .saturating_sub(stake.delegation.stake)
-                        .saturating_sub(meta.rent_exempt_reserve);
+                        .saturating_sub(validator_stake_rent);
                     // withdraw any extra lamports back to the reserve
                     if additional_lamports > 0 {
                         Self::stake_withdraw(
@@ -2186,6 +2183,7 @@ impl Processor {
         let pool_mint_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let clock = Clock::get()?;
+        let rent = Rent::get()?;
 
         check_account_owner(stake_pool_info, program_id)?;
         let mut stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data.borrow())?;
@@ -2216,19 +2214,14 @@ impl Processor {
 
         let previous_lamports = stake_pool.total_lamports;
         let previous_pool_token_supply = stake_pool.pool_token_supply;
-        let reserve_stake = try_from_slice_unchecked::<stake::state::StakeStateV2>(
-            &reserve_stake_info.data.borrow(),
-        )?;
-        let mut total_lamports =
-            if let stake::state::StakeStateV2::Initialized(meta) = reserve_stake {
-                reserve_stake_info
-                    .lamports()
-                    .checked_sub(minimum_reserve_lamports(&meta))
-                    .ok_or(StakePoolError::CalculationFailure)?
-            } else {
-                msg!("Reserve stake account in unknown state, aborting");
-                return Err(StakePoolError::WrongStakeStake.into());
-            };
+        let reserve_rent = rent.minimum_balance(reserve_stake_info.data_len());
+
+        // Use `saturating_sub` here in case rent goes up and the reserve doesn't
+        // have enough lamports to cover rent.
+        let mut total_lamports = reserve_stake_info
+            .lamports()
+            .saturating_sub(minimum_reserve_lamports(reserve_rent));
+
         for validator_stake_record in validator_list
             .deserialize_slice::<ValidatorStakeInfo>(0, validator_list.len() as usize)?
         {
@@ -2825,6 +2818,8 @@ impl Processor {
         let stake_program_info = next_account_info(account_info_iter)?;
         let sol_withdraw_authority_info = next_account_info(account_info_iter);
 
+        let rent = Rent::get()?;
+
         check_stake_program(stake_program_info.key)?;
         check_account_owner(stake_pool_info, program_id)?;
         let mut stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data.borrow())?;
@@ -2884,26 +2879,26 @@ impl Processor {
             return Err(StakePoolError::WithdrawalTooSmall.into());
         }
 
-        if let Some(minimum_lamports_out) = minimum_lamports_out {
-            if withdraw_lamports < minimum_lamports_out {
-                return Err(StakePoolError::ExceededSlippage.into());
-            }
-        }
-
+        let split_from_rent = rent.minimum_balance(stake_split_from.data_len());
         let stake_minimum_delegation = stake::tools::get_minimum_delegation()?;
         let stake_state = try_from_slice_unchecked::<stake::state::StakeStateV2>(
             &stake_split_from.data.borrow(),
         )?;
-        let meta = stake_state.meta().ok_or(StakePoolError::WrongStakeStake)?;
-        let required_lamports = minimum_stake_lamports(&meta, stake_minimum_delegation);
+        let required_lamports = minimum_stake_lamports(split_from_rent, stake_minimum_delegation);
 
         let lamports_per_pool_token = stake_pool
             .get_lamports_per_pool_token()
             .ok_or(StakePoolError::CalculationFailure)?;
-        let minimum_lamports_with_tolerance =
-            required_lamports.saturating_add(lamports_per_pool_token);
 
-        let has_active_stake = validator_list
+        // Since this instruction performs a stake split on an active stake, the
+        // source stake needs to have at least twice the minimum delegation
+        // amount, so that both accounts have at least the minimum delegation
+        // afterwards.
+        let minimum_lamports_with_tolerance = required_lamports
+            .saturating_add(stake_minimum_delegation)
+            .saturating_add(lamports_per_pool_token);
+
+        let has_withdrawable_active_stake = validator_list
             .find::<ValidatorStakeInfo, _>(|x| {
                 ValidatorStakeInfo::active_lamports_greater_than(
                     x,
@@ -2911,7 +2906,7 @@ impl Processor {
                 ) && ValidatorStakeInfo::is_active(x)
             })
             .is_some();
-        let has_transient_stake = validator_list
+        let has_withdrawable_transient_stake = validator_list
             .find::<ValidatorStakeInfo, _>(|x| {
                 ValidatorStakeInfo::transient_lamports_greater_than(
                     x,
@@ -2922,13 +2917,13 @@ impl Processor {
 
         let validator_list_item_info = if *stake_split_from.key == stake_pool.reserve_stake {
             // check that the validator stake accounts have no withdrawable stake
-            if has_transient_stake || has_active_stake {
+            if has_withdrawable_transient_stake || has_withdrawable_active_stake {
                 msg!("Error withdrawing from reserve: validator stake accounts have lamports available, please use those first.");
                 return Err(StakePoolError::StakeLamportsNotEqualToMinimum.into());
             }
 
             // check that reserve has enough
-            let minimum_reserve_lamports = minimum_reserve_lamports(&meta);
+            let minimum_reserve_lamports = minimum_reserve_lamports(split_from_rent);
             if stake_split_from
                 .lamports()
                 .saturating_sub(withdraw_lamports)
@@ -2957,11 +2952,9 @@ impl Processor {
                         ValidatorStakeInfo::memcmp_pubkey(x, &preferred_withdraw_validator)
                     })
                 {
-                    let available_lamports =
-                        u64::from(preferred_validator_info.active_stake_lamports)
-                            .saturating_sub(minimum_lamports_with_tolerance);
                     if preferred_withdraw_validator != vote_account_address
-                        && available_lamports > 0
+                        && u64::from(preferred_validator_info.active_stake_lamports)
+                            >= minimum_lamports_with_tolerance
                     {
                         msg!("Validator vote address {} is preferred for withdrawals, it currently has {} lamports available. Please withdraw those before using other validator stake accounts.", preferred_withdraw_validator, u64::from(preferred_validator_info.active_stake_lamports));
                         return Err(StakePoolError::IncorrectWithdrawVoteAddress.into());
@@ -2977,7 +2970,7 @@ impl Processor {
                 })
                 .ok_or(StakePoolError::ValidatorNotFound)?;
 
-            let withdraw_source = if has_active_stake {
+            let withdraw_source = if has_withdrawable_active_stake {
                 // if there's any active stake, we must withdraw from an active
                 // stake account
                 check_validator_stake_address(
@@ -2988,7 +2981,7 @@ impl Processor {
                     NonZeroU32::new(validator_stake_info.validator_seed_suffix.into()),
                 )?;
                 StakeWithdrawSource::Active
-            } else if has_transient_stake
+            } else if has_withdrawable_transient_stake
                 || validator_stake_info.transient_stake_lamports != 0.into()
             {
                 // if there's any transient stake, we must withdraw from there
@@ -3061,6 +3054,12 @@ impl Processor {
             }
             Some((validator_stake_info, withdraw_source))
         };
+
+        if let Some(minimum_lamports_out) = minimum_lamports_out {
+            if withdraw_lamports < minimum_lamports_out {
+                return Err(StakePoolError::ExceededSlippage.into());
+            }
+        }
 
         Self::token_burn(
             token_program_info.clone(),
@@ -3172,6 +3171,8 @@ impl Processor {
         let token_program_info = next_account_info(account_info_iter)?;
         let sol_withdraw_authority_info = next_account_info(account_info_iter);
 
+        let rent = Rent::get()?;
+
         check_account_owner(stake_pool_info, program_id)?;
         let mut stake_pool = try_from_slice_unchecked::<StakePool>(&stake_pool_info.data.borrow())?;
         if !stake_pool.is_valid() {
@@ -3232,25 +3233,19 @@ impl Processor {
             }
         }
 
+        let reserve_rent = rent.minimum_balance(reserve_stake_info.data_len());
+        let minimum_reserve_lamports = minimum_reserve_lamports(reserve_rent);
         let new_reserve_lamports = reserve_stake_info
             .lamports()
             .saturating_sub(withdraw_lamports);
-        let stake_state = try_from_slice_unchecked::<stake::state::StakeStateV2>(
-            &reserve_stake_info.data.borrow(),
-        )?;
-        if let stake::state::StakeStateV2::Initialized(meta) = stake_state {
-            let minimum_reserve_lamports = minimum_reserve_lamports(&meta);
-            if new_reserve_lamports < minimum_reserve_lamports {
-                msg!("Attempting to withdraw {} lamports, maximum possible SOL withdrawal is {} lamports",
-                    withdraw_lamports,
-                    reserve_stake_info.lamports().saturating_sub(minimum_reserve_lamports)
-                );
-                return Err(StakePoolError::SolWithdrawalTooLarge.into());
-            }
-        } else {
-            msg!("Reserve stake account not in intialized state");
-            return Err(StakePoolError::WrongStakeStake.into());
-        };
+
+        if new_reserve_lamports < minimum_reserve_lamports {
+            msg!("Attempting to withdraw {} lamports, maximum possible SOL withdrawal is {} lamports",
+                withdraw_lamports,
+                reserve_stake_info.lamports().saturating_sub(minimum_reserve_lamports)
+            );
+            return Err(StakePoolError::SolWithdrawalTooLarge.into());
+        }
 
         Self::token_burn(
             token_program_info.clone(),
@@ -3788,63 +3783,6 @@ impl Processor {
                     Some(minimum_lamports_out),
                 )
             }
-        }
-    }
-}
-
-impl PrintProgramError for StakePoolError {
-    fn print<E>(&self)
-    where
-        E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
-    {
-        match self {
-            StakePoolError::AlreadyInUse => msg!("Error: The account cannot be initialized because it is already being used"),
-            StakePoolError::InvalidProgramAddress => msg!("Error: The program address provided doesn't match the value generated by the program"),
-            StakePoolError::InvalidState => msg!("Error: The stake pool state is invalid"),
-            StakePoolError::CalculationFailure => msg!("Error: The calculation failed"),
-            StakePoolError::FeeTooHigh => msg!("Error: Stake pool fee > 1"),
-            StakePoolError::WrongAccountMint => msg!("Error: Token account is associated with the wrong mint"),
-            StakePoolError::WrongManager => msg!("Error: Wrong pool manager account"),
-            StakePoolError::SignatureMissing => msg!("Error: Required signature is missing"),
-            StakePoolError::InvalidValidatorStakeList => msg!("Error: Invalid validator stake list account"),
-            StakePoolError::InvalidFeeAccount => msg!("Error: Invalid manager fee account"),
-            StakePoolError::WrongPoolMint => msg!("Error: Specified pool mint account is wrong"),
-            StakePoolError::WrongStakeStake => msg!("Error: Stake account is not in the state expected by the program"),
-            StakePoolError::UserStakeNotActive => msg!("Error: User stake is not active"),
-            StakePoolError::ValidatorAlreadyAdded => msg!("Error: Stake account voting for this validator already exists in the pool"),
-            StakePoolError::ValidatorNotFound => msg!("Error: Stake account for this validator not found in the pool"),
-            StakePoolError::InvalidStakeAccountAddress => msg!("Error: Stake account address not properly derived from the validator address"),
-            StakePoolError::StakeListOutOfDate => msg!("Error: Identify validator stake accounts with old balances and update them"),
-            StakePoolError::StakeListAndPoolOutOfDate => msg!("Error: First update old validator stake account balances and then pool stake balance"),
-            StakePoolError::UnknownValidatorStakeAccount => {
-                msg!("Error: Validator stake account is not found in the list storage")
-            }
-            StakePoolError::WrongMintingAuthority => msg!("Error: Wrong minting authority set for mint pool account"),
-            StakePoolError::UnexpectedValidatorListAccountSize=> msg!("Error: The size of the given validator stake list does match the expected amount"),
-            StakePoolError::WrongStaker=> msg!("Error: Wrong pool staker account"),
-            StakePoolError::NonZeroPoolTokenSupply => msg!("Error: Pool token supply is not zero on initialization"),
-            StakePoolError::StakeLamportsNotEqualToMinimum => msg!("Error: The lamports in the validator stake account is not equal to the minimum"),
-            StakePoolError::IncorrectDepositVoteAddress => msg!("Error: The provided deposit stake account is not delegated to the preferred deposit vote account"),
-            StakePoolError::IncorrectWithdrawVoteAddress => msg!("Error: The provided withdraw stake account is not the preferred deposit vote account"),
-            StakePoolError::InvalidMintFreezeAuthority => msg!("Error: The mint has an invalid freeze authority"),
-            StakePoolError::FeeIncreaseTooHigh => msg!("Error: The fee cannot increase by a factor exceeding the stipulated ratio"),
-            StakePoolError::WithdrawalTooSmall => msg!("Error: Not enough pool tokens provided to withdraw 1-lamport stake"),
-            StakePoolError::DepositTooSmall => msg!("Error: Not enough lamports provided for deposit to result in one pool token"),
-            StakePoolError::InvalidStakeDepositAuthority => msg!("Error: Provided stake deposit authority does not match the program's"),
-            StakePoolError::InvalidSolDepositAuthority => msg!("Error: Provided sol deposit authority does not match the program's"),
-            StakePoolError::InvalidPreferredValidator => msg!("Error: Provided preferred validator is invalid"),
-            StakePoolError::TransientAccountInUse => msg!("Error: Provided validator stake account already has a transient stake account in use"),
-            StakePoolError::InvalidSolWithdrawAuthority => msg!("Error: Provided sol withdraw authority does not match the program's"),
-            StakePoolError::SolWithdrawalTooLarge => msg!("Error: Too much SOL withdrawn from the stake pool's reserve account"),
-            StakePoolError::InvalidMetadataAccount => msg!("Error: Metadata account derived from pool mint account does not match the one passed to program"),
-            StakePoolError::UnsupportedMintExtension => msg!("Error: mint has an unsupported extension"),
-            StakePoolError::UnsupportedFeeAccountExtension => msg!("Error: fee account has an unsupported extension"),
-            StakePoolError::ExceededSlippage => msg!("Error: instruction exceeds desired slippage limit"),
-            StakePoolError::IncorrectMintDecimals => msg!("Error: Provided mint does not have 9 decimals to match SOL"),
-            StakePoolError::ReserveDepleted => msg!("Error: Pool reserve does not have enough lamports to fund rent-exempt reserve in split destination. Deposit more SOL in reserve, or pre-fund split destination with the rent-exempt reserve for a stake account."),
-            StakePoolError::MissingRequiredSysvar => msg!("Missing required sysvar account"),
-            StakePoolError::EpochRewardDistributionInProgress => msg!("Epoch reward distribution is currently in progress, stakes are still being updated"),
-            StakePoolError::TooManyValidatorsInPool => msg!("The stake pool has too many validators in the pool"),
         }
     }
 }
