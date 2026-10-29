@@ -7,7 +7,7 @@ import { ValidatorListLayout, ValidatorStakeInfoStatus } from '../src/layouts';
 export const CONSTANTS = {
   poolTokenAccount: new PublicKey('GQkqTamwqjaNDfsbNm7r3aXPJ4oTSqKC3d5t2PF9Smqd'),
   validatorStakeAccountAddress: new PublicKey(
-    new BN('69184b7f1bc836271c4ac0e29e53eb38a38ea0e7bcde693c45b30d1592a5a678', 'hex'),
+    new BN('43525f0875baf0e63c7c6d67e36d76eb9c2991d9a631cc45186079ea857f2886', 'hex'),
   ),
 };
 
